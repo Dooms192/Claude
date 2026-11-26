@@ -37,12 +37,16 @@ final class RecapRecorder {
     @ObservationIgnored private var startDate: Date?
     @ObservationIgnored private var elapsedBeforeStart: TimeInterval = 0
     @ObservationIgnored private var timer: Timer?
+    /// True while the microphone is being switched on, so a double-tap can't start twice.
+    @ObservationIgnored private var isStarting = false
 
     var hasContent: Bool { !transcript.trimmed.isEmpty }
 
     /// Starts listening. With `appending`, new speech is added after the existing transcript.
     func start(appending: Bool = false) async {
-        guard phase == .ready || phase == .review else { return }
+        guard phase == .ready || phase == .review, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
         errorMessage = nil
 
         guard await Self.requestPermissions() else {
@@ -67,9 +71,9 @@ final class RecapRecorder {
         silentFailures = 0
 
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            // Switching the audio system into recording mode can take a moment, so it
+            // happens off the main thread to keep the screen responsive.
+            try await AudioSessionController.activate()
 
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
@@ -183,7 +187,7 @@ final class RecapRecorder {
         committed = Self.join(committed, segmentText)
         segmentText = ""
         transcript = committed
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        AudioSessionController.deactivate()
         phase = .review
     }
 
@@ -195,7 +199,7 @@ final class RecapRecorder {
     private func teardownAudio() {
         if engine.isRunning { engine.stop() }
         engine.inputNode.removeTap(onBus: 0)
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        AudioSessionController.deactivate()
     }
 
     private static func join(_ a: String, _ b: String) -> String {
@@ -261,5 +265,35 @@ private final class RequestBox: @unchecked Sendable {
         let current = request
         lock.unlock()
         current?.endAudio()
+    }
+}
+
+/// Turns the shared audio session on and off on a background queue.
+///
+/// iOS warns that activating or deactivating the session on the main thread can make the
+/// app unresponsive. A single serial queue also keeps the order right: if you stop and
+/// immediately start again ("Add more"), the "off" always finishes before the next "on".
+enum AudioSessionController {
+    private static let queue = DispatchQueue(label: "recap.audio-session", qos: .userInitiated)
+
+    static func activate() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            queue.async {
+                do {
+                    let session = AVAudioSession.sharedInstance()
+                    try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    static func deactivate() {
+        queue.async {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 }
