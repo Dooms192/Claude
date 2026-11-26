@@ -121,6 +121,7 @@ Newest first.
 
 ### Bug fixes
 
+- **Performance pass:** Interview Prep's search now runs off the main thread and reuses the already-loaded language model. The recorder's nudge is worked out once instead of several times a second. Project timelines sort once per screen. The Projects list scans recaps once. Backup files are built in the background.
 - **Stray highlight when switching Prep and Competencies:** the screens no longer cross-fade, and the switch no longer replays its slide animation on the newly shown screen.
 - **Goal names in title case:** goals from recap suggestions were saved all lowercase. Goal names are now title-cased when saved (small words stay lowercase, and existing capitals like AWS are kept). Existing goals are fixed once, automatically.
 - **Slow typing in competency search:** each keystroke reloaded Apple's language model on the main thread. The model now loads once in the background, and searches run off the main thread after a short pause in typing.

@@ -12,6 +12,9 @@ struct RecapRecorderView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(filter: #Predicate<Goal> { !$0.isArchived }, sort: \Goal.createdAt) private var goals: [Goal]
     @Query private var allEntries: [DayEntry]
+    /// Worked out once when the recorder opens. The screen redraws several times a second
+    /// while recording, and this scans every recap.
+    @State private var nudge: String?
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var isSaving = false
@@ -53,6 +56,9 @@ struct RecapRecorderView: View {
             .navigationTitle(savedEntry == nil ? "Today's Recap" : "Saved")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
+        }
+        .onAppear {
+            if nudge == nil { nudge = CompetencyNudge.today(entries: allEntries) }
         }
         .interactiveDismissDisabled(savedEntry == nil && (recorder.hasContent || recorder.phase == .recording || isSaving))
         .confirmationDialog("Discard this recap?", isPresented: $confirmDiscard, titleVisibility: .visible) {
@@ -108,7 +114,7 @@ struct RecapRecorderView: View {
                 PromptRow(icon: "number", text: "Any numbers? Time saved, users, dollars, deadlines.")
             }
             // A rotating nudge toward competencies you don't have strong examples of yet.
-            if let nudge = CompetencyNudge.today(entries: allEntries) {
+            if let nudge {
                 Label(nudge, systemImage: "star.square.on.square")
                     .font(.subheadline.weight(.medium))
                     .padding(10)

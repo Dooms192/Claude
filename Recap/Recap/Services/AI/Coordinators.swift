@@ -128,7 +128,7 @@ enum InterviewCoach {
             )
         }
 
-        let picked = EntrySearch.rank(usable, for: request, limit: limit)
+        let picked = await EntrySearch.rank(usable, for: request, limit: limit)
         let context = InterviewContext(
             entries: picked.map { EntrySnapshot($0) },
             totalEntries: usable.count,
@@ -196,7 +196,7 @@ enum InterviewCoach {
         // Fill in with the days closest in meaning, which also gives the coach a "closest
         // example" for competencies with no tagged evidence.
         let fillQuery = ([request] + chosen.map { "\($0.name): \($0.signals.joined(separator: ", "))" }).joined(separator: " ")
-        for entry in EntrySearch.rank(usable, for: fillQuery, limit: isClaude ? 10 : 3)
+        for entry in await EntrySearch.rank(usable, for: fillQuery, limit: isClaude ? 10 : 3)
         where !picked.contains(where: { $0.id == entry.id }) {
             picked.append(entry)
         }
@@ -261,24 +261,29 @@ enum ProjectInsights {
 @MainActor
 enum EntrySearch {
     /// The most relevant entries for `query`, best first.
-    static func rank(_ entries: [DayEntry], for query: String, limit: Int) -> [DayEntry] {
+    ///
+    /// The meaning comparison runs off the main thread, using the language model that's
+    /// loaded once and shared with competency search, so tapping Prepare doesn't freeze
+    /// the screen.
+    static func rank(_ entries: [DayEntry], for query: String, limit: Int) async -> [DayEntry] {
         let queryWords = keywords(in: query)
-        let embedding = NLEmbedding.sentenceEmbedding(for: .english)
-
-        let scored = entries.map { entry -> (entry: DayEntry, score: Double) in
-            let text = entry.isSummarized
+        // Plain strings, safe to hand to the background search.
+        let texts = entries.map { entry in
+            String((entry.isSummarized
                 ? ([entry.headline, entry.summary] + entry.accomplishments + entry.challenges + entry.skills).joined(separator: ". ")
-                : entry.transcript
+                : entry.transcript).prefix(2000))
+        }
+        let meaning = await CompetencySearchIndex.shared.similarities(of: query, to: texts)
+
+        let scored = entries.enumerated().map { index, entry -> (entry: DayEntry, score: Double) in
             var score = 0.0
-            if let embedding {
-                // Cosine distance runs 0 (same meaning) to 2 (opposite).
-                let distance = embedding.distance(between: query, and: String(text.prefix(2000)), distanceType: .cosine)
-                score += 0.7 * max(0, 1 - distance / 2)
+            if let meaning {
+                score += 0.7 * meaning[index]
             }
             if !queryWords.isEmpty {
                 let haystack = entry.searchableText.lowercased()
                 let hits = queryWords.filter { haystack.contains($0) }.count
-                score += (embedding == nil ? 1.0 : 0.3) * Double(hits) / Double(queryWords.count)
+                score += (meaning == nil ? 1.0 : 0.3) * Double(hits) / Double(queryWords.count)
             }
             return (entry, score)
         }

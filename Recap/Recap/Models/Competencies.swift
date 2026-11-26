@@ -836,6 +836,17 @@ actor CompetencySearchIndex {
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map { $0.0 }
     }
 
+    /// How close in meaning `query` is to each text, from 0 to 1, or nil if the language
+    /// model isn't available. Used to rank journal entries for interview prep.
+    func similarities(of query: String, to texts: [String]) -> [Double]? {
+        load()
+        guard let embedding, let queryVector = embedding.vector(for: query) else { return nil }
+        return texts.map { text in
+            guard let vector = embedding.vector(for: text) else { return 0 }
+            return (1 + Self.cosine(queryVector, vector)) / 2
+        }
+    }
+
     private func load() {
         guard !isLoaded else { return }
         isLoaded = true

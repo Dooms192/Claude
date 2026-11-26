@@ -71,8 +71,8 @@ struct ProjectListView: View {
     }
 
     var body: some View {
+        let pending = detections
         List(selection: $selection) {
-            let pending = detections
             if !pending.isEmpty {
                 Section("New projects detected") {
                     ForEach(Array(pending.enumerated()), id: \.offset) { _, detection in
@@ -89,7 +89,7 @@ struct ProjectListView: View {
             section("Inactive · Still working on these?", projects(.inactive))
         }
         .overlay {
-            if projects.isEmpty && detections.isEmpty {
+            if projects.isEmpty && pending.isEmpty {
                 ContentUnavailableView {
                     Label("No projects yet", systemImage: "square.stack.3d.up")
                 } description: {
@@ -206,8 +206,9 @@ struct ProjectDetailView: View {
                     .font(.title3.bold())
                     .id("timeline")
 
-                ForEach(project.timeline) { entry in
-                    TimelinePoint(project: project, entry: entry, isLast: entry.id == project.timeline.last?.id)
+                let timeline = project.timeline
+                ForEach(timeline) { entry in
+                    TimelinePoint(project: project, entry: entry, isLast: entry.id == timeline.last?.id)
                         .id(entry.id.uuidString)
                 }
             }

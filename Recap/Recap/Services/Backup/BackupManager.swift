@@ -173,11 +173,13 @@ final class BackupManager {
         hasUnsavedChanges = false
 
         do {
-            let data = try BackupFile.make(from: container.mainContext).encoded()
+            // Reading the data has to happen on the main thread; turning it into JSON and
+            // writing the file don't, so they happen in the background.
+            let file = try BackupFile.make(from: container.mainContext)
             let name = Self.fileName(for: Date(), suffix: suffix)
             let keep = keepCount
             try await Task.detached(priority: .utility) {
-                try BackupFiles.write(data, named: name, in: folder, keep: keep)
+                try BackupFiles.write(try file.encoded(), named: name, in: folder, keep: keep)
             }.value
             lastBackupAt = Date()
             UserDefaults.standard.set(lastBackupAt, forKey: Self.lastBackupKey)
