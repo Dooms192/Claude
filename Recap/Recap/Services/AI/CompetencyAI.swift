@@ -34,9 +34,20 @@ struct CompetencyBrief: Sendable {
     var signals: [String]
     /// Strongest first.
     var evidence: [Evidence]
+    /// What a strong interview answer shows for this competency.
+    var listenFor: [String] = []
+    /// Ways people fall short, for the story to avoid. Only sent to Claude.
+    var lessSkilled: [String] = []
 
-    func promptBlock() -> String {
+    /// `detailed` adds the less-skilled patterns; it's off for Apple's small on-device model.
+    func promptBlock(detailed: Bool = true) -> String {
         var lines = ["<competency name=\"\(name)\">", "Definition: \(definition)", "Behaviors: \(signals.joined(separator: "; "))"]
+        if !listenFor.isEmpty {
+            lines.append("What interviewers listen for: \(listenFor.joined(separator: "; "))")
+        }
+        if detailed, !lessSkilled.isEmpty {
+            lines.append("Less-skilled patterns the story should avoid: \(lessSkilled.joined(separator: "; "))")
+        }
         if evidence.isEmpty {
             lines.append("Tagged evidence: none yet.")
         } else {
@@ -162,8 +173,9 @@ enum CompetencyPrompts {
       at "strong", and complete stories with a clear result.
     - When the example is part of a project, use the project's timeline so the story runs \
       from start to finish.
-    - The Action must clearly show the behaviors of that competency. Show it through what \
-      the user did; don't name the competency awkwardly.
+    - The Action must clearly show the behaviors of that competency, and what interviewers \
+      listen for in it. Show it through what the user did; don't name the competency \
+      awkwardly. When less-skilled patterns are listed, make sure the story doesn't show them.
     - Don't reuse the same example for two competencies when another good one exists.
     - competency is the exact competency name. whyThisExample is one sentence on why you \
       chose this example.
@@ -186,7 +198,8 @@ enum CompetencyPrompts {
         entryLimit: Int,
         transcriptLimit: Int,
         projectLimit: Int,
-        projectDayLimit: Int
+        projectDayLimit: Int,
+        detailedCompetencies: Bool
     ) -> String {
         let description = request.trimmed.isEmpty ? "A general interview focused on these competencies." : request
         var text = """
@@ -196,7 +209,7 @@ enum CompetencyPrompts {
         Today's date: \(DayFormat.iso(Date()))
 
         Build one story for each of these competencies:
-        \(context.competencies.map { $0.promptBlock() }.joined(separator: "\n\n"))
+        \(context.competencies.map { $0.promptBlock(detailed: detailedCompetencies) }.joined(separator: "\n\n"))
 
 
         """
@@ -377,7 +390,8 @@ extension ClaudeCoach {
                 entryLimit: Self.maxEntries,
                 transcriptLimit: 1200,
                 projectLimit: 5,
-                projectDayLimit: 40
+                projectDayLimit: 40,
+                detailedCompetencies: true
             ),
             schema: JSONSchema.object([
                 "overview": JSONSchema.string("Two or three sentences on how these competencies fit this interview"),
@@ -401,7 +415,8 @@ extension AppleCoach {
                 entryLimit: Self.maxEntries,
                 transcriptLimit: 0,
                 projectLimit: 1,
-                projectDayLimit: 6
+                projectDayLimit: 6,
+                detailedCompetencies: false
             ),
             generating: GeneratedCompetencyPrep.self
         )

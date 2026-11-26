@@ -56,6 +56,26 @@ struct Competency: Identifiable, Hashable, Sendable {
     let nudge: String
 
     var id: String { name }
+
+    /// What employers look for in this competency. Edit the text in `CompetencyLibrary.guides`.
+    var guide: CompetencyGuide { CompetencyLibrary.guides[name] ?? .empty }
+}
+
+/// What employers and interviewers look for in a competency: shown by the "i" button, and
+/// given to the AI when it builds competency stories.
+struct CompetencyGuide: Sendable {
+    /// What doing it well looks like.
+    let skilled: [String]
+    /// Common ways people fall short.
+    let lessSkilled: [String]
+    /// What happens when the strength goes too far.
+    let overused: [String]
+    /// What a strong interview answer shows.
+    let whatInterviewersListenFor: [String]
+    /// Typical behavioral interview questions.
+    let sampleQuestions: [String]
+
+    static let empty = CompetencyGuide(skilled: [], lessSkilled: [], overused: [], whatInterviewersListenFor: [], sampleQuestions: [])
 }
 
 /// How clearly a recap shows a competency.
@@ -494,4 +514,288 @@ struct CompetencyRecord {
         }
         return result
     }
+}
+
+// MARK: - What employers look for
+//
+// Shown by the "i" button on competencies. Written in plain words for this app from
+// general knowledge of these competencies, not copied from "FYI: For Your Improvement".
+// Edit freely to match your edition of the book.
+
+extension CompetencyLibrary {
+    static let guides: [String: CompetencyGuide] = [
+        // MARK: Thought
+        "Business insight": CompetencyGuide(
+            skilled: ["Knows how the company makes and spends money", "Follows the market, customers, and competitors", "Connects day-to-day work to business results", "Spots trends early and explains why they matter"],
+            lessSkilled: ["Focuses only on their own function", "Can't explain how their work affects the business", "Misses changes in the market or industry"],
+            overused: ["Talks business strategy when the team needs execution", "Chases every trend and loses focus", "Comes across as dismissive of people closer to the details"],
+            whatInterviewersListenFor: ["A clear link between your actions and a business outcome", "Real knowledge of the market or customer", "Numbers or impact, not just activity"],
+            sampleQuestions: ["Tell me about a decision you made using your understanding of the business.", "How did a change in your industry affect your work, and what did you do?"]
+        ),
+        "Customer focus": CompetencyGuide(
+            skilled: ["Seeks out what customers actually need", "Uses feedback to shape decisions", "Follows through until the customer's problem is solved", "Builds lasting relationships and trust"],
+            lessSkilled: ["Assumes they know what customers want", "Treats complaints as a nuisance", "Lets internal convenience win over the customer"],
+            overused: ["Says yes to every request, even bad ideas", "Over-customizes at the expense of the bigger picture", "Neglects the team or the business to please one customer"],
+            whatInterviewersListenFor: ["How you learned what the customer needed", "What you changed because of it", "The result for the customer, ideally measured"],
+            sampleQuestions: ["Tell me about a time you went above and beyond for a customer.", "Describe a time customer feedback changed your plan."]
+        ),
+        "Financial acumen": CompetencyGuide(
+            skilled: ["Reads budgets, costs, and financial results comfortably", "Weighs cost and return before deciding", "Finds savings or revenue", "Explains the financial impact of choices"],
+            lessSkilled: ["Avoids the numbers", "Makes decisions without considering cost", "Can't explain the financial impact of their work"],
+            overused: ["Cuts costs so hard that quality or morale suffers", "Lets the spreadsheet override judgment", "Gets lost in financial detail"],
+            whatInterviewersListenFor: ["Specific numbers you worked with", "How money shaped your decision", "The financial result"],
+            sampleQuestions: ["Tell me about a time you managed a budget or reduced costs.", "Describe a decision where you weighed cost against benefit."]
+        ),
+        "Tech savvy": CompetencyGuide(
+            skilled: ["Picks up new tools quickly", "Uses technology to save time or improve results", "Helps others adopt new tools", "Knows which tech fits which problem"],
+            lessSkilled: ["Sticks to old ways when better tools exist", "Waits for others to figure out new technology", "Uses tools without understanding them"],
+            overused: ["Adds tools for their own sake", "Over-engineers simple problems", "Leaves less technical people behind"],
+            whatInterviewersListenFor: ["The specific tool or technology", "Why you chose it", "What it improved and by how much"],
+            sampleQuestions: ["Tell me about a time you used technology to improve how work got done.", "How do you get up to speed on a new tool?"]
+        ),
+        "Manages complexity": CompetencyGuide(
+            skilled: ["Breaks messy problems into manageable parts", "Pulls together information from many sources", "Finds the root cause, not just symptoms", "Makes the complicated understandable for others"],
+            lessSkilled: ["Jumps to solutions too early", "Gets overwhelmed by too much information", "Fixes symptoms and the problem comes back"],
+            overused: ["Over-analyzes and delays action", "Makes simple things complicated", "Loses people in detail"],
+            whatInterviewersListenFor: ["How you structured the problem", "The information you gathered and how you weighed it", "The root cause you found and the result"],
+            sampleQuestions: ["Tell me about the most complex problem you've solved.", "Describe a time you had to make sense of conflicting information."]
+        ),
+        "Decision quality": CompetencyGuide(
+            skilled: ["Makes timely decisions, even without perfect information", "Weighs options and tradeoffs clearly", "Explains the reasoning behind decisions", "Learns from decisions that didn't work"],
+            lessSkilled: ["Puts off decisions", "Decides on gut feel without considering options", "Changes course too often"],
+            overused: ["Decides too fast without input", "Won't revisit a decision when facts change", "Takes decisions away from others"],
+            whatInterviewersListenFor: ["The options you considered", "How you decided and how quickly", "What happened, including what you learned"],
+            sampleQuestions: ["Tell me about a tough decision you made with incomplete information.", "Describe a decision you'd make differently now."]
+        ),
+        "Balances stakeholders": CompetencyGuide(
+            skilled: ["Understands what different groups need", "Finds solutions that work for several sides", "Keeps stakeholders informed", "Handles competing priorities fairly"],
+            lessSkilled: ["Favors the loudest voice", "Forgets to involve key groups", "Surprises people with decisions"],
+            overused: ["Tries to please everyone and decides nothing", "Spends too long on alignment", "Waters down outcomes to avoid upsetting anyone"],
+            whatInterviewersListenFor: ["Who the stakeholders were and what each wanted", "How you weighed and communicated tradeoffs", "The outcome for each side"],
+            sampleQuestions: ["Tell me about a time you had to balance competing requests.", "Describe how you got different groups to agree on a direction."]
+        ),
+        "Global perspective": CompetencyGuide(
+            skilled: ["Thinks beyond their own location and culture", "Works well across regions and time zones", "Adapts products or approaches for different markets", "Considers global effects of decisions"],
+            lessSkilled: ["Assumes what works locally works everywhere", "Ignores cultural differences", "Leaves remote or international colleagues out"],
+            overused: ["Over-complicates local decisions", "Spreads effort too thin across markets", "Loses sight of local needs"],
+            whatInterviewersListenFor: ["The cross-border or cross-cultural situation", "How you adapted", "The result in each region"],
+            sampleQuestions: ["Tell me about working with people from other countries or cultures.", "Describe a time you adapted something for a different market."]
+        ),
+        "Cultivates innovation": CompetencyGuide(
+            skilled: ["Generates new ideas and better ways of working", "Tests ideas with experiments or prototypes", "Encourages others to try new things", "Turns ideas into real results"],
+            lessSkilled: ["Sticks with how it's always been done", "Has ideas but never tests them", "Shuts down unusual suggestions"],
+            overused: ["Chases novelty over what works", "Starts too many experiments and finishes few", "Changes things that didn't need changing"],
+            whatInterviewersListenFor: ["The idea and where it came from", "How you tested it and handled pushback", "The measurable impact"],
+            sampleQuestions: ["Tell me about a new idea you introduced and how it went.", "Describe a time you challenged the usual way of doing something."]
+        ),
+        "Strategic mindset": CompetencyGuide(
+            skilled: ["Looks ahead to future opportunities and risks", "Turns long-term goals into concrete plans", "Connects today's work to where things are headed", "Adjusts strategy as conditions change"],
+            lessSkilled: ["Focuses only on the short term", "Has a vision but no plan", "Is surprised by predictable changes"],
+            overused: ["Lives in the future and neglects today", "Plans endlessly without acting", "Comes across as impractical"],
+            whatInterviewersListenFor: ["The future you anticipated", "The plan you made and how you got buy-in", "What it led to"],
+            sampleQuestions: ["Tell me about a time you planned for the long term.", "Describe how you turned a big-picture goal into a plan."]
+        ),
+
+        // MARK: Results
+        "Action oriented": CompetencyGuide(
+            skilled: ["Jumps on problems and opportunities quickly", "Takes initiative without being asked", "Brings energy to tough challenges", "Moves forward despite uncertainty"],
+            lessSkilled: ["Waits to be told what to do", "Hesitates until it's too late", "Avoids hard or unfamiliar work"],
+            overused: ["Acts before thinking things through", "Burns out themselves or the team", "Leaves a trail of half-finished work"],
+            whatInterviewersListenFor: ["What you noticed and how fast you moved", "That you acted without being asked", "The result of acting quickly"],
+            sampleQuestions: ["Tell me about a time you took initiative.", "Describe a situation where you had to act quickly."]
+        ),
+        "Resourcefulness": CompetencyGuide(
+            skilled: ["Gets results with limited time, money, or people", "Finds creative workarounds", "Reuses what already exists", "Knows where to find help or resources"],
+            lessSkilled: ["Gives up when resources are short", "Waits for more budget or headcount", "Reinvents things that already exist"],
+            overused: ["Cuts corners that shouldn't be cut", "Never asks for resources that are truly needed", "Builds fragile workarounds"],
+            whatInterviewersListenFor: ["The constraint you faced", "The creative way you got around it", "What you achieved with what you had"],
+            sampleQuestions: ["Tell me about a time you did a lot with very little.", "Describe a creative workaround you came up with."]
+        ),
+        "Directs work": CompetencyGuide(
+            skilled: ["Gives clear direction and expectations", "Delegates the right work to the right people", "Removes obstacles for the team", "Checks progress without micromanaging"],
+            lessSkilled: ["Leaves people unsure what's expected", "Does everything themselves", "Lets blockers sit"],
+            overused: ["Micromanages", "Directs when they should be listening", "Leaves no room for others' ideas"],
+            whatInterviewersListenFor: ["How you set expectations and delegated", "How you supported and unblocked people", "What the team delivered"],
+            sampleQuestions: ["Tell me about a time you delegated an important task.", "How do you make sure people know what's expected of them?"]
+        ),
+        "Plans and aligns": CompetencyGuide(
+            skilled: ["Breaks goals into clear plans and timelines", "Prioritizes what matters most", "Coordinates with other teams and dependencies", "Adjusts the plan when things change"],
+            lessSkilled: ["Works without a plan", "Treats everything as equally urgent", "Is blindsided by dependencies"],
+            overused: ["Plans so much that action stalls", "Sticks rigidly to a plan after it stops making sense", "Spends more time in meetings than doing"],
+            whatInterviewersListenFor: ["How you planned and prioritized", "How you coordinated with others", "Whether it landed on time and why"],
+            sampleQuestions: ["Tell me about a project you planned from start to finish.", "How do you prioritize when everything is urgent?"]
+        ),
+        "Optimizes work processes": CompetencyGuide(
+            skilled: ["Spots inefficiencies and bottlenecks", "Simplifies and improves processes", "Measures before and after", "Keeps improving over time"],
+            lessSkilled: ["Tolerates broken processes", "Adds steps instead of removing them", "Improves things without measuring results"],
+            overused: ["Tinkers with processes that work fine", "Values process over people or results", "Makes constant changes that confuse people"],
+            whatInterviewersListenFor: ["The specific process and its problem", "What you changed", "The measured improvement"],
+            sampleQuestions: ["Tell me about a process you improved.", "Describe a time you removed a bottleneck."]
+        ),
+        "Ensures accountability": CompetencyGuide(
+            skilled: ["Follows through on commitments", "Owns mistakes openly", "Tracks progress against goals", "Holds others to their commitments fairly"],
+            lessSkilled: ["Lets deadlines slip without saying anything", "Blames others", "Avoids following up with people"],
+            overused: ["Becomes rigid or punishing", "Focuses on blame over learning", "Tracks so closely it feels like distrust"],
+            whatInterviewersListenFor: ["A commitment you owned", "How you handled it when things went wrong", "What you changed afterward"],
+            sampleQuestions: ["Tell me about a time you made a mistake and owned it.", "How have you held a teammate accountable?"]
+        ),
+        "Drives results": CompetencyGuide(
+            skilled: ["Delivers consistently, even under pressure", "Sets and hits challenging goals", "Pushes through obstacles", "Focuses effort on what moves results"],
+            lessSkilled: ["Gives up when things get hard", "Confuses activity with results", "Misses deadlines regularly"],
+            overused: ["Hits targets at any cost to people", "Ignores how results are achieved", "Can't celebrate or slow down"],
+            whatInterviewersListenFor: ["The goal and why it was hard", "What you personally did to push through", "The measurable result"],
+            sampleQuestions: ["Tell me about a time you delivered results under pressure.", "Describe a goal you achieved despite obstacles."]
+        ),
+
+        // MARK: People
+        "Collaborates": CompetencyGuide(
+            skilled: ["Works well with others toward shared goals", "Shares information and credit", "Seeks input and builds on others' ideas", "Helps others succeed"],
+            lessSkilled: ["Works in a silo", "Holds information back", "Competes with teammates instead of partnering"],
+            overused: ["Can't make a decision without group agreement", "Spends too long building consensus", "Avoids individual accountability"],
+            whatInterviewersListenFor: ["Who you worked with and your specific role", "How you handled differences", "The shared outcome"],
+            sampleQuestions: ["Tell me about a successful collaboration with another team.", "Describe a time you helped a colleague succeed."]
+        ),
+        "Manages conflict": CompetencyGuide(
+            skilled: ["Addresses disagreements directly and early", "Listens to understand all sides", "Finds common ground", "Keeps conflict focused on the issue, not people"],
+            lessSkilled: ["Avoids conflict until it blows up", "Takes sides too quickly", "Lets conflict get personal"],
+            overused: ["Steps into conflicts that aren't theirs", "Pushes for resolution before people are ready", "Smooths over real issues"],
+            whatInterviewersListenFor: ["What the disagreement was and why it mattered", "How you handled it step by step", "How it was resolved and the relationship afterward"],
+            sampleQuestions: ["Tell me about a time you resolved a disagreement between team members.", "Describe a conflict you had with a coworker and how you handled it."]
+        ),
+        "Interpersonal savvy": CompetencyGuide(
+            skilled: ["Reads people and situations well", "Builds rapport quickly", "Adjusts style for different people", "Handles sensitive conversations with tact"],
+            lessSkilled: ["Uses the same approach with everyone", "Misses social cues", "Comes across as blunt or cold"],
+            overused: ["Says what people want to hear", "Seems political or insincere", "Avoids hard truths to keep things pleasant"],
+            whatInterviewersListenFor: ["How you read the person or situation", "How you adjusted your approach", "The effect on the relationship"],
+            sampleQuestions: ["Tell me about a time you had to win over a difficult person.", "Describe a sensitive conversation you handled well."]
+        ),
+        "Builds networks": CompetencyGuide(
+            skilled: ["Builds relationships inside and outside the organization", "Uses connections to get things done", "Keeps in touch over time", "Helps others connect"],
+            lessSkilled: ["Only knows their immediate team", "Reaches out only when they need something", "Struggles to find the right person to ask"],
+            overused: ["Spends too much time networking and too little delivering", "Relies on connections over merit", "Seems transactional"],
+            whatInterviewersListenFor: ["The relationship and how you built it", "How it helped get something done", "The outcome"],
+            sampleQuestions: ["Tell me about a time a relationship helped you achieve something.", "How do you build relationships outside your team?"]
+        ),
+        "Attracts top talent": CompetencyGuide(
+            skilled: ["Spots strong talent", "Runs fair, thoughtful hiring", "Sells the role and team honestly", "Refers and recruits good people"],
+            lessSkilled: ["Hires quickly to fill a seat", "Hires people just like themselves", "Makes candidates feel unwelcome"],
+            overused: ["Hires stars who don't fit the team", "Over-sells the role", "Spends too long searching for the perfect candidate"],
+            whatInterviewersListenFor: ["Your role in finding or selecting someone", "How you judged fit and skill", "How the hire worked out"],
+            sampleQuestions: ["Tell me about a great hire you helped make.", "How do you evaluate candidates?"]
+        ),
+        "Develops talent": CompetencyGuide(
+            skilled: ["Coaches and mentors people", "Gives specific, useful feedback", "Offers stretch opportunities", "Celebrates others' growth"],
+            lessSkilled: ["Doesn't make time for development", "Gives vague or no feedback", "Keeps the best work for themselves"],
+            overused: ["Pushes people too hard or too fast", "Focuses on development over delivery", "Coaches people who didn't ask for it"],
+            whatInterviewersListenFor: ["Who you developed and where they started", "What you specifically did to help", "How they grew"],
+            sampleQuestions: ["Tell me about someone you mentored and how they grew.", "Describe a time you gave someone difficult feedback to help them improve."]
+        ),
+        "Values differences": CompetencyGuide(
+            skilled: ["Seeks out different perspectives", "Includes people who might be left out", "Adapts to different working styles", "Uses diverse views to improve decisions"],
+            lessSkilled: ["Listens mostly to people like themselves", "Overlooks quieter voices", "Expects everyone to work the same way"],
+            overused: ["Gathers so many views that decisions stall", "Avoids making calls to keep everyone included", "Focuses on process over outcomes"],
+            whatInterviewersListenFor: ["The different perspective you sought or included", "How it changed the outcome", "What you learned"],
+            sampleQuestions: ["Tell me about a time a different perspective improved your work.", "How have you included someone who was being left out?"]
+        ),
+        "Builds effective teams": CompetencyGuide(
+            skilled: ["Creates a shared sense of purpose", "Clarifies roles and how people work together", "Builds trust within the team", "Addresses team problems early"],
+            lessSkilled: ["Treats the team as a group of individuals", "Leaves roles unclear", "Ignores team tension"],
+            overused: ["Protects the team from outside input", "Prioritizes harmony over results", "Builds an in-group that excludes others"],
+            whatInterviewersListenFor: ["The state of the team before", "What you did to strengthen it", "How the team performed after"],
+            sampleQuestions: ["Tell me about a time you turned a struggling team around.", "How have you built trust on a team?"]
+        ),
+        "Communicates effectively": CompetencyGuide(
+            skilled: ["Explains ideas clearly and simply", "Tailors the message to the audience", "Listens as well as speaks", "Writes clear updates and documents"],
+            lessSkilled: ["Uses jargon or too much detail", "Gives the same message to every audience", "Doesn't check for understanding"],
+            overused: ["Over-communicates and floods people", "Polishes the message more than the substance", "Talks more than listens"],
+            whatInterviewersListenFor: ["Who the audience was", "How you shaped the message for them", "Whether they understood and acted"],
+            sampleQuestions: ["Tell me about a time you explained something complex to a non-expert.", "Describe a presentation that went well and why."]
+        ),
+        "Drives engagement": CompetencyGuide(
+            skilled: ["Recognizes people's contributions", "Connects work to a meaningful purpose", "Creates an environment where people want to do their best", "Listens to what motivates each person"],
+            lessSkilled: ["Takes people's effort for granted", "Doesn't explain why work matters", "Assumes everyone is motivated the same way"],
+            overused: ["Cheerleads without substance", "Avoids hard messages to keep morale up", "Over-praises until it means little"],
+            whatInterviewersListenFor: ["What motivated or demotivated people", "What you did about it", "The change in energy or results"],
+            sampleQuestions: ["Tell me about a time you motivated a team through a hard stretch.", "How do you recognize good work?"]
+        ),
+        "Organizational savvy": CompetencyGuide(
+            skilled: ["Understands how decisions really get made", "Works through the right channels", "Gets buy-in from key people early", "Navigates politics without playing games"],
+            lessSkilled: ["Is surprised by politics", "Goes around people and creates resistance", "Doesn't know who influences decisions"],
+            overused: ["Seems political or manipulative", "Spends more energy on positioning than work", "Avoids anything risky to their standing"],
+            whatInterviewersListenFor: ["How you mapped who mattered", "How you got buy-in", "What you got done because of it"],
+            sampleQuestions: ["Tell me about a time you navigated a complex organization to get something done.", "How do you get buy-in from senior leaders?"]
+        ),
+        "Persuades": CompetencyGuide(
+            skilled: ["Builds compelling, evidence-based arguments", "Tailors the case to what others care about", "Influences without formal authority", "Handles objections well"],
+            lessSkilled: ["Relies on authority or repetition", "Doesn't consider what others care about", "Gives up after the first no"],
+            overused: ["Pushes too hard and damages relationships", "Wins arguments but loses trust", "Won't take no for an answer"],
+            whatInterviewersListenFor: ["Who you needed to convince and why it was hard", "How you built and tailored your case", "Whether they changed their mind and the result"],
+            sampleQuestions: ["Tell me about a time you persuaded someone who disagreed with you.", "Describe how you influenced people you didn't manage."]
+        ),
+        "Drives vision and purpose": CompetencyGuide(
+            skilled: ["Paints a clear picture of the future", "Explains why the work matters", "Rallies people around a shared goal", "Keeps the vision alive through setbacks"],
+            lessSkilled: ["Focuses only on tasks, never the why", "Has a vision but can't communicate it", "Loses people's belief when things get hard"],
+            overused: ["Oversells the vision", "Neglects practical details", "Dismisses concerns as negativity"],
+            whatInterviewersListenFor: ["The vision and how you communicated it", "How people responded", "What it achieved"],
+            sampleQuestions: ["Tell me about a time you rallied people around a goal.", "How have you explained the why behind a big change?"]
+        ),
+
+        // MARK: Self
+        "Courage": CompetencyGuide(
+            skilled: ["Raises hard issues others avoid", "Pushes back respectfully when they disagree", "Gives tough feedback honestly", "Stands by their convictions under pressure"],
+            lessSkilled: ["Stays quiet to avoid conflict", "Goes along with decisions they disagree with", "Softens feedback until it loses meaning"],
+            overused: ["Picks fights that don't matter", "Comes across as abrasive", "Won't let go after a decision is made"],
+            whatInterviewersListenFor: ["What was hard or risky to say", "How you raised it", "What changed as a result"],
+            sampleQuestions: ["Tell me about a time you spoke up when others didn't.", "Describe a time you disagreed with your manager."]
+        ),
+        "Instills trust": CompetencyGuide(
+            skilled: ["Keeps promises", "Is honest, even with bad news", "Acts with integrity when it's hard", "Treats information with discretion"],
+            lessSkilled: ["Over-promises and under-delivers", "Hides bad news", "Says different things to different people"],
+            overused: ["Is so cautious about commitments they rarely make any", "Shares too much in the name of transparency", "Is rigid about rules in gray areas"],
+            whatInterviewersListenFor: ["A situation where trust was at stake", "What you chose to do and why", "How it affected the relationship"],
+            sampleQuestions: ["Tell me about a time you had to deliver bad news.", "Describe a time you did the right thing when it was difficult."]
+        ),
+        "Demonstrates self-awareness": CompetencyGuide(
+            skilled: ["Knows their strengths and weaknesses", "Asks for feedback and acts on it", "Reflects on mistakes", "Notices how they affect others"],
+            lessSkilled: ["Is surprised by feedback", "Gets defensive about criticism", "Repeats the same mistakes"],
+            overused: ["Is overly self-critical", "Dwells on weaknesses instead of acting", "Seeks feedback so often it slows decisions"],
+            whatInterviewersListenFor: ["A specific insight about yourself", "Where it came from, such as feedback or reflection", "What you changed"],
+            sampleQuestions: ["What's a piece of feedback that changed how you work?", "Tell me about a weakness and how you've worked on it."]
+        ),
+        "Self-development": CompetencyGuide(
+            skilled: ["Actively seeks to learn and grow", "Sets personal development goals", "Takes on stretch assignments", "Applies what they learn"],
+            lessSkilled: ["Waits for the company to develop them", "Avoids unfamiliar work", "Learns things but never applies them"],
+            overused: ["Chases growth at the expense of current work", "Collects courses without using them", "Changes direction too often"],
+            whatInterviewersListenFor: ["What you set out to learn and why", "How you learned it", "How you've used it"],
+            sampleQuestions: ["Tell me about a skill you taught yourself.", "How do you keep developing in your role?"]
+        ),
+        "Manages ambiguity": CompetencyGuide(
+            skilled: ["Makes progress without full information", "Stays calm when plans change", "Brings clarity for others", "Comfortable with open-ended problems"],
+            lessSkilled: ["Freezes without clear direction", "Gets anxious when plans change", "Needs every detail before starting"],
+            overused: ["Leaves things vague when clarity is needed", "Moves ahead on too many assumptions", "Frustrates people who need structure"],
+            whatInterviewersListenFor: ["What was unclear", "How you moved forward anyway", "The outcome and what you learned"],
+            sampleQuestions: ["Tell me about a time you had to work without clear direction.", "Describe a project where the goals kept changing."]
+        ),
+        "Nimble learning": CompetencyGuide(
+            skilled: ["Gets up to speed quickly in new areas", "Learns from mistakes and experiments", "Asks good questions", "Applies lessons to new situations"],
+            lessSkilled: ["Sticks to what they know", "Makes the same mistakes twice", "Takes a long time to adapt to new situations"],
+            overused: ["Jumps between topics without depth", "Experiments where reliability matters", "Gets bored once things become routine"],
+            whatInterviewersListenFor: ["How new the situation was", "How you learned quickly", "How well you performed"],
+            sampleQuestions: ["Tell me about a time you had to learn something new quickly.", "Describe a mistake you learned from."]
+        ),
+        "Being resilient": CompetencyGuide(
+            skilled: ["Bounces back from setbacks", "Stays steady under pressure", "Learns from failure and keeps going", "Helps others stay positive"],
+            lessSkilled: ["Gets discouraged and gives up", "Takes setbacks personally", "Lets stress affect their work or others"],
+            overused: ["Pushes through when they should step back", "Hides struggles instead of asking for help", "Expects others to handle the same pressure"],
+            whatInterviewersListenFor: ["The setback and how it affected you", "What you did to recover", "What happened next"],
+            sampleQuestions: ["Tell me about a time you failed and how you recovered.", "How do you handle sustained pressure?"]
+        ),
+        "Situational adaptability": CompetencyGuide(
+            skilled: ["Changes approach when something isn't working", "Adjusts style for different people and situations", "Stays effective when things shift", "Reads what a situation needs"],
+            lessSkilled: ["Uses the same approach no matter what", "Resists changing course", "Struggles when circumstances shift"],
+            overused: ["Seems inconsistent or hard to predict", "Changes direction too easily", "Lacks a clear point of view"],
+            whatInterviewersListenFor: ["What changed in the situation", "How you adjusted", "Why the new approach worked better"],
+            sampleQuestions: ["Tell me about a time you had to change your approach mid-project.", "Describe how you adjust your style for different people."]
+        ),
+    ]
 }

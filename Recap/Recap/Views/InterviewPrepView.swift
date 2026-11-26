@@ -522,9 +522,15 @@ struct STARStoryCard: View {
         VStack(alignment: .leading, spacing: 14) {
             if let name = story.competency {
                 let competency = CompetencyLibrary.find(name)
-                Label(name, systemImage: competency?.factor.systemImage ?? "star.square.on.square")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(competency?.factor.tint ?? Color.accentColor)
+                HStack(spacing: 8) {
+                    Label(name, systemImage: competency?.factor.systemImage ?? "star.square.on.square")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(competency?.factor.tint ?? Color.accentColor)
+                    if let competency {
+                        CompetencyInfoButton(competency: competency)
+                            .font(.subheadline)
+                    }
+                }
             }
             HStack(alignment: .firstTextBaseline) {
                 Text("\(number)")

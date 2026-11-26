@@ -61,6 +61,8 @@ final class AppRouter {
     var interviewMode: InterviewMode = .prep
     /// Set by "Build a STAR story for this competency"; Interview Prep picks it up.
     var interviewCompetencies: [String]?
+    /// Set by "See my evidence" in a competency's info pop-up; the Competencies screen opens it.
+    var pendingCompetencyDetail: String?
 
     func startRecap() {
         tab = .journal
@@ -70,6 +72,12 @@ final class AppRouter {
     func prepInterview(for project: Project) {
         interviewProjectID = project.id
         interviewMode = .prep
+        tab = .interview
+    }
+
+    func showCompetency(_ name: String) {
+        pendingCompetencyDetail = name
+        interviewMode = .competencies
         tab = .interview
     }
 

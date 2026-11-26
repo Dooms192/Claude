@@ -60,6 +60,13 @@ struct CompetenciesView: View {
                 description: Text("See every day you showed it, or open Coverage to find your gaps.")
             )
         }
+        // "See my evidence" in a competency's info pop-up lands here.
+        .onChange(of: router.pendingCompetencyDetail, initial: true) { _, name in
+            guard let name else { return }
+            searchText = ""
+            selection = .competency(name)
+            router.pendingCompetencyDetail = nil
+        }
         .onChange(of: dictation.transcript) { _, spoken in
             if dictation.phase == .recording || dictation.phase == .finishing { searchText = spoken }
         }
@@ -190,6 +197,9 @@ struct CompetencyListView: View {
                         .foregroundStyle(best.tint)
                         .accessibilityLabel("Best example: \(best.label)")
                 }
+                if selection == .competency(competency.name) {
+                    CompetencyInfoButton(competency: competency)
+                }
             }
         }
     }
@@ -252,7 +262,11 @@ struct CompetencyDetailView: View {
                     Label(competency.factor.label, systemImage: competency.factor.systemImage)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(competency.factor.tint)
-                    Text(competency.name).font(.largeTitle.bold())
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(competency.name).font(.largeTitle.bold())
+                        CompetencyInfoButton(competency: competency, placement: .detailScreen)
+                            .font(.title2)
+                    }
                     Text(competency.definition)
                         .font(.title3)
                         .foregroundStyle(.secondary)
@@ -544,6 +558,9 @@ struct CompetencyTagEditor: View {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(tag.competency).font(.headline)
+                                if let competency = CompetencyLibrary.find(tag.competency) {
+                                    CompetencyInfoButton(competency: competency, placement: .insideSheet)
+                                }
                                 Spacer()
                                 Label(tag.level.label, systemImage: tag.level.systemImage)
                                     .font(.caption)
@@ -648,26 +665,33 @@ struct CompetencyPickerSheet: View {
 
     private func row(for competency: Competency) -> some View {
         let isSelected = selection.contains(competency.name)
-        return Button {
-            if isSelected {
-                selection.removeAll { $0 == competency.name }
-            } else {
-                selection.append(competency.name)
-            }
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(competency.name).foregroundStyle(.primary)
-                    Text(competency.definition)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                Spacer()
+        return HStack(spacing: 12) {
+            Button {
                 if isSelected {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
+                    selection.removeAll { $0 == competency.name }
+                } else {
+                    selection.append(competency.name)
                 }
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(competency.name).foregroundStyle(.primary)
+                        Text(competency.definition)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
+                    }
+                }
+                .contentShape(Rectangle())
             }
+            // Borderless so the row's two buttons stay separate tap targets.
+            .buttonStyle(.borderless)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            CompetencyInfoButton(competency: competency, placement: .insideSheet)
         }
     }
 }

@@ -184,7 +184,9 @@ enum InterviewCoach {
                 signals: competency.signals,
                 evidence: evidence.prefix(isClaude ? 8 : 3).map {
                     CompetencyBrief.Evidence(day: DayFormat.iso($0.entry.date), strength: $0.tag.level.rawValue, moment: $0.tag.moment)
-                }
+                },
+                listenFor: competency.guide.whatInterviewersListenFor,
+                lessSkilled: isClaude ? competency.guide.lessSkilled : []
             ))
             for item in evidence.prefix(isClaude ? 4 : 2) where !picked.contains(where: { $0.id == item.entry.id }) {
                 picked.append(item.entry)
