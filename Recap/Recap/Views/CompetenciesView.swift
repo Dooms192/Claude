@@ -226,6 +226,10 @@ struct InterviewModePicker: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            // Each screen has its own copy of this switch. Rebuilding it when the mode
+            // changes makes the newly shown copy appear already in place, instead of
+            // replaying its slide animation from the old position.
+            .id(router.interviewMode)
         }
         .listRowBackground(Color.clear)
         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))

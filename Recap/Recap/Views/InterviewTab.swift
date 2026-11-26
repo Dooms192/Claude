@@ -18,6 +18,9 @@ struct InterviewTab: View {
     private func layer(_ content: some View, isShowing: Bool) -> some View {
         content
             .opacity(isShowing ? 1 : 0)
+            // Swap instantly. A cross-fade briefly showed both screens' Prep/Competencies
+            // switches at once, which looked like a stray highlight.
+            .transaction(value: router.interviewMode) { $0.animation = nil }
             .allowsHitTesting(isShowing)
             .accessibilityHidden(!isShowing)
     }
