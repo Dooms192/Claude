@@ -26,6 +26,25 @@ struct InterviewPrepView: View {
     @State private var dictation = RecapRecorder()
     @State private var textBeforeDictation = ""
 
+    // Competencies to build one story each for.
+    @State private var selectedCompetencies: [String] = []
+    /// Competencies found in what you typed or said, waiting for you to confirm or remove.
+    @State private var detectedCompetencies: [String] = []
+    @State private var dismissedCompetencies: Set<String> = []
+    @State private var lastDetectedText = ""
+    @State private var showingCompetencyPicker = false
+    @State private var showingPostingSheet = false
+    @State private var postingText = ""
+    @State private var readingPosting = false
+
+    private var suggestedCompetencies: [String] {
+        detectedCompetencies.filter { !selectedCompetencies.contains($0) && !dismissedCompetencies.contains($0) }
+    }
+
+    private var canPrepare: Bool {
+        !(request.trimmed.isEmpty && selectedCompetencies.isEmpty) && !isWorking && !isDictating
+    }
+
     private var isDictating: Bool {
         dictation.phase == .recording || dictation.phase == .finishing
     }
@@ -40,6 +59,8 @@ struct InterviewPrepView: View {
     var body: some View {
         AdaptiveSplitView(selection: $selection) {
             List(selection: $selection) {
+                InterviewModePicker()
+
                 Section {
                     if !projects.isEmpty {
                         Picker("Use stories from", selection: $projectFilterID) {
@@ -63,6 +84,8 @@ struct InterviewPrepView: View {
                             .foregroundStyle(.red)
                             .symbolEffect(.variableColor.iterative, isActive: true)
                     }
+
+                    competencyRow
 
                     HStack(spacing: 10) {
                         Button {
@@ -96,7 +119,7 @@ struct InterviewPrepView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
-                        .disabled(request.trimmed.isEmpty || isWorking || isDictating)
+                        .disabled(!canPrepare)
                     }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 } header: {
@@ -125,10 +148,38 @@ struct InterviewPrepView: View {
                                     Text("\(session.createdAt.formatted(date: .abbreviated, time: .shortened)) · \(session.engine)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    if !session.competencyNames.isEmpty {
+                                        Text(session.competencyNames.joined(separator: " · "))
+                                            .font(.caption)
+                                            .foregroundStyle(Color.accentColor)
+                                            .lineLimit(1)
+                                    }
                                 }
                             }
                         }
                         .onDelete(perform: delete)
+                    }
+                }
+
+                // Shown in the list itself, so it's visible on every iPhone, folded or not.
+                // (On the unfolded Duo it's also on the right until you pick a prep.)
+                Section {
+                    DisclosureGroup {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Recap turns the days you've recorded into stories in this shape:")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            STARPart(letter: "S", name: "Situation", text: "The context. Where you were and what was going on.", tint: .blue)
+                            STARPart(letter: "T", name: "Task", text: "What you were responsible for.", tint: .purple)
+                            STARPart(letter: "A", name: "Action", text: "The specific steps you took.", tint: .orange)
+                            STARPart(letter: "R", name: "Result", text: "What happened, ideally with numbers.", tint: .green)
+                            Text("Every story uses only what you actually said, with the dates it came from.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 6)
+                    } label: {
+                        Label("What's a STAR story?", systemImage: "questionmark.circle")
                     }
                 }
             }
@@ -141,6 +192,15 @@ struct InterviewPrepView: View {
         // "Prep interview stories from this project" on a project page lands here.
         .onAppear(perform: takeProjectFromRouter)
         .onChange(of: router.interviewProjectID) { takeProjectFromRouter() }
+        // "Build a STAR story for this competency" lands here.
+        .onAppear(perform: takeCompetenciesFromRouter)
+        .onChange(of: router.interviewCompetencies) { takeCompetenciesFromRouter() }
+        // Finds competencies in your description a moment after you stop typing or talking.
+        .task(id: request) { await detectCompetencies() }
+        .sheet(isPresented: $showingCompetencyPicker) {
+            CompetencyPickerSheet(selection: $selectedCompetencies)
+        }
+        .sheet(isPresented: $showingPostingSheet) { postingSheet }
         .onChange(of: dictation.transcript) { _, spoken in
             guard isDictating else { return }
             request = Self.join(textBeforeDictation, spoken)
@@ -175,22 +235,32 @@ struct InterviewPrepView: View {
 
     private func prepare() async {
         let query = request.trimmed
-        guard !query.isEmpty else { return }
+        let competencies = selectedCompetencies
+        guard !query.isEmpty || !competencies.isEmpty else { return }
         isWorking = true
         defer { isWorking = false }
         do {
-            let outcome = try await InterviewCoach.prepare(for: query, entries: entries, project: selectedProject)
+            let outcome = try await InterviewCoach.prepare(
+                for: query,
+                entries: entries,
+                project: selectedProject,
+                competencies: competencies
+            )
             let session = PrepSession(
-                query: query,
+                query: query.isEmpty ? "Stories for: " + competencies.joined(separator: ", ") : query,
                 engine: outcome.engine,
                 note: outcome.note,
                 entriesUsed: outcome.entriesUsed,
                 prep: outcome.prep,
-                projectName: selectedProject?.name
+                projectName: selectedProject?.name,
+                competencyNames: competencies
             )
             context.insert(session)
             try? context.save()
             request = ""
+            selectedCompetencies = []
+            detectedCompetencies = []
+            dismissedCompetencies = []
             selection = session
         } catch {
             errorMessage = error.localizedDescription
@@ -202,6 +272,156 @@ struct InterviewPrepView: View {
         projectFilterID = id
         selection = nil
         router.interviewProjectID = nil
+    }
+
+    private func takeCompetenciesFromRouter() {
+        guard let names = router.interviewCompetencies else { return }
+        for name in names where !selectedCompetencies.contains(name) {
+            selectedCompetencies.append(name)
+        }
+        selection = nil
+        router.interviewCompetencies = nil
+    }
+
+    /// Waits for a pause in typing (this task restarts on every change), then asks the AI
+    /// which competencies the description mentions or implies.
+    private func detectCompetencies() async {
+        let text = request.trimmed
+        guard text.count >= 25, text.count <= 1500, text != lastDetectedText, !isDictating else { return }
+        try? await Task.sleep(for: .seconds(1.5))
+        guard !Task.isCancelled else { return }
+        if let found = try? await CompetencyDetection.detect(in: text, isJobPosting: false), !Task.isCancelled {
+            lastDetectedText = text
+            detectedCompetencies = found
+        }
+    }
+
+    /// Reads a pasted job posting and pre-selects the 3 to 5 competencies it emphasizes.
+    private func readPosting() async {
+        let posting = postingText.trimmed
+        guard !posting.isEmpty else { return }
+        readingPosting = true
+        defer { readingPosting = false }
+        do {
+            let found = try await CompetencyDetection.detect(in: posting, isJobPosting: true)
+            for name in found where !selectedCompetencies.contains(name) {
+                selectedCompetencies.append(name)
+            }
+            if request.trimmed.isEmpty {
+                lastDetectedText = "Job posting:\n" + posting
+                request = lastDetectedText
+            }
+            postingText = ""
+            showingPostingSheet = false
+        } catch {
+            showingPostingSheet = false
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @ViewBuilder
+    private var competencyRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Build stories for")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Button("Choose") { showingCompetencyPicker = true }
+                    .font(.subheadline)
+                    .buttonStyle(.borderless)
+            }
+            if selectedCompetencies.isEmpty {
+                Text("Optional. Pick competencies, paste a job posting, or let Recap find them in your description.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                FlowLayout(spacing: 6) {
+                    ForEach(selectedCompetencies, id: \.self) { name in
+                        Button {
+                            selectedCompetencies.removeAll { $0 == name }
+                        } label: {
+                            Label(name, systemImage: "xmark.circle.fill")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.accentColor.opacity(0.16), in: Capsule())
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove \(name)")
+                    }
+                }
+            }
+            if !suggestedCompetencies.isEmpty {
+                Text("Found in your description. Tap to add:")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                FlowLayout(spacing: 6) {
+                    ForEach(suggestedCompetencies, id: \.self) { name in
+                        HStack(spacing: 2) {
+                            Button {
+                                selectedCompetencies.append(name)
+                            } label: {
+                                Label(name, systemImage: "plus.circle.fill")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .buttonStyle(.borderless)
+                            Button {
+                                dismissedCompetencies.insert(name)
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                    .padding(4)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Not \(name)")
+                        }
+                        .padding(.leading, 10)
+                        .padding(.trailing, 4)
+                        .padding(.vertical, 3)
+                        .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    }
+                }
+            }
+            Button {
+                showingPostingSheet = true
+            } label: {
+                Label("Paste a job posting", systemImage: "doc.on.clipboard")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var postingSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Paste the job description. Recap picks the 3 to 5 competencies it emphasizes and selects them for you.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $postingText)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .padding()
+            .navigationTitle("Job posting")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showingPostingSheet = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if readingPosting {
+                        ProgressView()
+                    } else {
+                        Button("Find competencies") { Task { await readPosting() } }
+                            .disabled(postingText.trimmed.isEmpty)
+                    }
+                }
+            }
+        }
     }
 
     private func toggleDictation() async {
@@ -243,6 +463,11 @@ struct PrepResultView: View {
                         Text("Drew on \(session.entriesUsed) of your days\(session.projectName.map { " from “\($0)”" } ?? "") · \(session.engine)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                        if !session.competencyNames.isEmpty {
+                            FlowLayout(spacing: 6) {
+                                ForEach(session.competencyNames, id: \.self) { Chip(text: $0) }
+                            }
+                        }
                     }
 
                     if let note = session.note {
@@ -289,11 +514,18 @@ struct STARStoryCard: View {
     let number: Int
     let story: STARStory
     @State private var showScript = true
+    @State private var showFollowUps = false
 
     private let columns = [GridItem(.adaptive(minimum: 260), spacing: 12, alignment: .top)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if let name = story.competency {
+                let competency = CompetencyLibrary.find(name)
+                Label(name, systemImage: competency?.factor.systemImage ?? "star.square.on.square")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(competency?.factor.tint ?? Color.accentColor)
+            }
             HStack(alignment: .firstTextBaseline) {
                 Text("\(number)")
                     .font(.headline)
@@ -303,9 +535,23 @@ struct STARStoryCard: View {
                 Text(story.title)
                     .font(.title3.bold())
             }
-            Text(story.whyItFits)
+            Text(story.competency == nil ? story.whyItFits : "Why this example: \(story.whyItFits)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            if let gap = story.gapAdvice {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("No strong example yet").font(.subheadline.weight(.semibold))
+                        Text(gap).font(.subheadline)
+                    }
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
 
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 STARPart(letter: "S", name: "Situation", text: story.situation, tint: .blue)
@@ -323,6 +569,24 @@ struct STARStoryCard: View {
             } label: {
                 Label("How to say it", systemImage: "quote.bubble")
                     .font(.subheadline.weight(.semibold))
+            }
+
+            if let followUps = story.followUps, !followUps.isEmpty {
+                DisclosureGroup(isExpanded: $showFollowUps) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(Array(followUps.enumerated()), id: \.offset) { _, followUp in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(followUp.question).font(.subheadline.weight(.semibold))
+                                Text(followUp.howToAnswer).font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 6)
+                } label: {
+                    Label("Likely follow-up questions", systemImage: "bubble.left.and.text.bubble.right")
+                        .font(.subheadline.weight(.semibold))
+                }
             }
 
             if !story.dates.isEmpty {

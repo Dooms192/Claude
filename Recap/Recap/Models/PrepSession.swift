@@ -13,9 +13,20 @@ final class PrepSession {
     var resultData: Data = Data()
     /// Set when the prep used stories from one project only.
     var projectName: String?
+    /// Competencies the stories were built around, if any.
+    var competencyNames: [String] = []
 
-    init(query: String, engine: String, note: String?, entriesUsed: Int, prep: InterviewPrep, projectName: String? = nil) {
+    init(
+        query: String,
+        engine: String,
+        note: String?,
+        entriesUsed: Int,
+        prep: InterviewPrep,
+        projectName: String? = nil,
+        competencyNames: [String] = []
+    ) {
         self.projectName = projectName
+        self.competencyNames = competencyNames
         self.query = query
         self.engine = engine
         self.note = note
@@ -37,14 +48,23 @@ struct InterviewPrep: Codable, Hashable, Sendable {
     var plainText: String {
         var lines = [overview, ""]
         for (index, story) in stories.enumerated() {
-            lines.append("\(index + 1). \(story.title)")
-            lines.append("Why it fits: \(story.whyItFits)")
+            if let competency = story.competency {
+                lines.append("\(index + 1). \(competency): \(story.title)")
+                lines.append("Why this example: \(story.whyItFits)")
+            } else {
+                lines.append("\(index + 1). \(story.title)")
+                lines.append("Why it fits: \(story.whyItFits)")
+            }
+            if let gap = story.gapAdvice, !gap.isEmpty { lines.append("Gap: \(gap)") }
             lines.append("Situation: \(story.situation)")
             lines.append("Task: \(story.task)")
             lines.append("Action: \(story.action)")
             lines.append("Result: \(story.result)")
             lines.append("How to say it: \(story.howToSayIt)")
             if !story.dates.isEmpty { lines.append("From: \(story.dates.joined(separator: ", "))") }
+            for followUp in story.followUps ?? [] {
+                lines.append("Follow-up: \(followUp.question) → \(followUp.howToAnswer)")
+            }
             lines.append("")
         }
         if !tips.isEmpty {
@@ -65,4 +85,15 @@ struct STARStory: Codable, Hashable, Sendable {
     var result: String
     var howToSayIt: String
     var dates: [String]
+    /// Competency mode only: which competency this story is built around.
+    var competency: String? = nil
+    /// Competency mode only: likely interviewer follow-ups and how to answer them.
+    var followUps: [FollowUp]? = nil
+    /// Competency mode only: set when there's no strong example yet, with what to do about it.
+    var gapAdvice: String? = nil
+}
+
+struct FollowUp: Codable, Hashable, Sendable {
+    var question: String
+    var howToAnswer: String
 }

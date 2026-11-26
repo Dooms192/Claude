@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.summaryEngine) private var summaryEngine: AIEngine = .apple
     @AppStorage(SettingsKey.interviewEngine) private var interviewEngine: AIEngine = .claude
     @AppStorage(ProjectPulse.enabledKey) private var projectPulseEnabled = false
+    @AppStorage(CompetencyPulse.enabledKey) private var competencyPulseEnabled = false
     @Environment(\.modelContext) private var context
 
     @State private var keyField = ""
@@ -64,10 +65,14 @@ struct SettingsView: View {
                 .onChange(of: projectPulseEnabled) { _, enabled in
                     Task { await updatePulse(enabled: enabled) }
                 }
+            Toggle("Weekly competency pulse", isOn: $competencyPulseEnabled)
+                .onChange(of: competencyPulseEnabled) { _, enabled in
+                    Task { await updateCompetencyPulse(enabled: enabled) }
+                }
         } header: {
-            Text("Projects")
+            Text("Weekly summaries")
         } footer: {
-            Text("A Sunday evening summary, like: \"You moved 3 projects forward this week. 'Website redesign' hasn't been mentioned in 2 weeks.\"")
+            Text("Sunday evening notifications, like: \"You moved 3 projects forward this week.\" and \"This week you showed Drives results 3 times. You haven't logged Develops talent in a month.\"")
         }
     }
 
@@ -163,6 +168,20 @@ struct SettingsView: View {
             await ProjectPulse.reschedule(in: context)
         } else {
             projectPulseEnabled = false
+        }
+    }
+
+    private func updateCompetencyPulse(enabled: Bool) async {
+        guard enabled else {
+            CompetencyPulse.cancel()
+            return
+        }
+        let allowed = await ReminderScheduler.requestAuthorization()
+        notificationsDenied = !allowed
+        if allowed {
+            await CompetencyPulse.reschedule(in: context)
+        } else {
+            competencyPulseEnabled = false
         }
     }
 

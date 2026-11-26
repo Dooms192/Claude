@@ -20,6 +20,8 @@ protocol RecapSummarizer: Sendable {
 protocol InterviewCoachEngine: Sendable {
     var displayName: String { get }
     func prepare(request: String, context: InterviewContext) async throws -> InterviewPrep
+    /// One STAR story per competency in `context.competencies`.
+    func prepareCompetencies(request: String, context: InterviewContext) async throws -> InterviewPrep
 }
 
 /// Everything the interview coach gets to work with.
@@ -31,6 +33,8 @@ struct InterviewContext: Sendable {
     var projects: [ProjectSnapshot]
     /// Set when you picked "Use stories from: [project]".
     var focusProject: String?
+    /// Competencies to build one story each for, with your tagged evidence.
+    var competencies: [CompetencyBrief] = []
 }
 
 /// A plain copy of a project and its timeline, safe to hand to background AI work.

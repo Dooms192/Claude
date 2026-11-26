@@ -42,6 +42,10 @@ enum RecapProcessor {
         entry.apply(result, engine: summarizer.displayName, goals: activeGoals)
         entry.applyProjects(result.projects, existing: allProjects)
 
+        // Competency tags come from a second, separate call. A failure here never fails
+        // the recap; you can re-tag later from the Competencies screen.
+        try? await CompetencyTagging.tag(entry)
+
         // Refresh the overview of every project this recap touched, in the background.
         let touched = entry.projects ?? []
         if !touched.isEmpty {
@@ -83,8 +87,14 @@ enum InterviewCoach {
         var entriesUsed: Int
     }
 
-    /// With `project`, stories come only from that project's days.
-    static func prepare(for request: String, entries: [DayEntry], project: Project? = nil) async throws -> Outcome {
+    /// With `project`, stories come only from that project's days. With `competencies`,
+    /// you get one story per competency.
+    static func prepare(
+        for request: String,
+        entries: [DayEntry],
+        project: Project? = nil,
+        competencies: [String] = []
+    ) async throws -> Outcome {
         let pool = project.map { $0.entries ?? [] } ?? entries
         let usable = pool.filter { !$0.transcript.trimmed.isEmpty }
         guard !usable.isEmpty else {
@@ -111,6 +121,13 @@ enum InterviewCoach {
             throw RecapError.noEngine(AppleIntelligence.statusText)
         }
 
+        if !competencies.isEmpty {
+            return try await prepareCompetencies(
+                request: request, usable: usable, project: project, names: competencies,
+                coach: coach, limit: limit, note: note
+            )
+        }
+
         let picked = EntrySearch.rank(usable, for: request, limit: limit)
         let context = InterviewContext(
             entries: picked.map { EntrySnapshot($0) },
@@ -119,6 +136,78 @@ enum InterviewCoach {
             focusProject: project?.name
         )
         let prep = try await coach.prepare(request: request, context: context)
+        return Outcome(prep: prep, engine: coach.displayName, note: note, entriesUsed: picked.count)
+    }
+
+    /// Competency mode: picks the best tagged days for each competency (strong, complete
+    /// stories first), fills in with the closest matches, and asks for one story each.
+    private static func prepareCompetencies(
+        request: String,
+        usable: [DayEntry],
+        project: Project?,
+        names: [String],
+        coach: any InterviewCoachEngine,
+        limit: Int,
+        note: String?
+    ) async throws -> Outcome {
+        let isClaude = coach is ClaudeCoach
+        let all = names.compactMap { CompetencyLibrary.find($0) }
+        let chosen = Array(all.prefix(isClaude ? 8 : AppleCoach.maxCompetencies))
+        var note = note
+        if chosen.count < all.count {
+            let skipped = all.dropFirst(chosen.count).map(\.name).joined(separator: ", ")
+            note = [note, "Apple Intelligence can handle \(chosen.count) competencies at a time, so these were left out: \(skipped). Add a Claude API key in Settings to do them all at once."]
+                .compactMap { $0 }
+                .joined(separator: " ")
+        }
+
+        var picked: [DayEntry] = []
+        var briefs: [CompetencyBrief] = []
+        for competency in chosen {
+            let evidence = usable
+                .flatMap { entry in
+                    entry.competencyTags
+                        .filter { CompetencyLibrary.find($0.competency)?.name == competency.name }
+                        .map { (entry: entry, tag: $0) }
+                }
+                .sorted { a, b in
+                    if a.tag.level != b.tag.level { return a.tag.level > b.tag.level }
+                    // Prefer complete stories: days with recorded accomplishments.
+                    if a.entry.accomplishments.isEmpty != b.entry.accomplishments.isEmpty {
+                        return !a.entry.accomplishments.isEmpty
+                    }
+                    return a.entry.date > b.entry.date
+                }
+            briefs.append(CompetencyBrief(
+                name: competency.name,
+                definition: competency.definition,
+                signals: competency.signals,
+                evidence: evidence.prefix(isClaude ? 8 : 3).map {
+                    CompetencyBrief.Evidence(day: DayFormat.iso($0.entry.date), strength: $0.tag.level.rawValue, moment: $0.tag.moment)
+                }
+            ))
+            for item in evidence.prefix(isClaude ? 4 : 2) where !picked.contains(where: { $0.id == item.entry.id }) {
+                picked.append(item.entry)
+            }
+        }
+
+        // Fill in with the days closest in meaning, which also gives the coach a "closest
+        // example" for competencies with no tagged evidence.
+        let fillQuery = ([request] + chosen.map { "\($0.name): \($0.signals.joined(separator: ", "))" }).joined(separator: " ")
+        for entry in EntrySearch.rank(usable, for: fillQuery, limit: isClaude ? 10 : 3)
+        where !picked.contains(where: { $0.id == entry.id }) {
+            picked.append(entry)
+        }
+        picked = Array(picked.prefix(limit))
+
+        let context = InterviewContext(
+            entries: picked.map { EntrySnapshot($0) },
+            totalEntries: usable.count,
+            projects: projectsFor(picked, focus: project).map { ProjectSnapshot($0) },
+            focusProject: project?.name,
+            competencies: briefs
+        )
+        let prep = try await coach.prepareCompetencies(request: request, context: context)
         return Outcome(prep: prep, engine: coach.displayName, note: note, entriesUsed: picked.count)
     }
 

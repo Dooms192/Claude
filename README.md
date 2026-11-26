@@ -14,7 +14,8 @@ At the end of each day, Recap reminds you to talk through what you did. It turns
 | Goals | Add goals, and each recap is checked against them. Each goal shows a timeline of the days you worked on it. |
 | Journal | Every day, searchable, grouped by month. |
 | Projects | Recap spots ongoing projects in your recaps and asks before adding them (Add, Rename, Merge, or Ignore). Each project gets an AI overview, highlights (wins, skills, solved blockers), a weekly activity chart, and a day-by-day timeline. Projects you haven't mentioned in 21 days are marked inactive with a "Still working on this?" prompt. There's an optional weekly "Project pulse" notification, and you can share a project as text. |
-| Interview prep | Describe the interview. Recap finds the most relevant days by meaning, not just keywords, and writes 3–5 STAR stories, a "how to say it" script for each, and tips. Results are grouped by project, so one project's whole story becomes one answer. You can limit stories to a single project, and speak your request instead of typing it. Past preps are saved and shareable. |
+| Competencies | Each recap is tagged with the FYI / Korn Ferry Leadership Architect competencies you showed (38, in four groups), with the moment and how strongly (strong, solid, or light). You can browse and search them by meaning, see your evidence for each, find gaps in Coverage, export your best example for each, and fix tags by hand. Recaps from before this feature can be tagged with "Re-tag my past recaps". Found in the Interview tab under **Competencies**. |
+| Interview prep | Describe the interview. Recap finds the most relevant days by meaning, not just keywords, and writes 3–5 STAR stories, a "how to say it" script for each, and tips. Results are grouped by project, so one project's whole story becomes one answer. You can limit stories to a single project, and speak your request instead of typing it. In competency mode you pick competencies (or paste a job posting, or let Recap find them in your description), and you get one story per competency with a "why this example" line, likely follow-up questions, and an honest note when you don't have a strong example yet. Past preps are saved and shareable. |
 
 Your recap is always saved *before* it's summarized, so a failed summary never loses what you said. You can retry from the journal.
 
@@ -64,6 +65,7 @@ Recap/
   Recap/
     RecapApp.swift                 App entry, tab routing, notification handling
     Models/                        SwiftData models: DayEntry, Goal, Project, PrepSession (+ STAR types)
+      Competencies.swift           The 38 competencies with definitions and signals. Edit this to match your edition of FYI.
     Services/
       RecapRecorder.swift          Microphone + on-device speech-to-text
       ReminderScheduler.swift      Daily notification
@@ -75,10 +77,11 @@ Recap/
         AppleIntelligence.swift    On-device model (Foundation Models)
         Claude.swift               Anthropic Messages API client + JSON schemas
         Coordinators.swift         Engine picking, on-device semantic search, interview coach
+        CompetencyAI.swift         Competency tagging, detection, and one-story-per-competency prep
     Views/
       Components/AdaptiveSplitView.swift   NavigationSplitView wrapper used by every tab
       Components/ProjectComponents.swift   New-project card, project tags, text export
-      JournalView, ProjectsView, RecapRecorderView, GoalsView, InterviewPrepView, SettingsView
+      JournalView, ProjectsView, RecapRecorderView, GoalsView, InterviewTab, InterviewPrepView, CompetenciesView, SettingsView
 ```
 
 All data is stored on the device with SwiftData.

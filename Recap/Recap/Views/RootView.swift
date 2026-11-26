@@ -20,7 +20,7 @@ struct RootView: View {
                 GoalsView()
             }
             Tab("Interview", systemImage: "briefcase", value: AppTab.interview) {
-                InterviewPrepView()
+                InterviewTab()
             }
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
@@ -36,7 +36,10 @@ struct RootView: View {
             // Mark projects you haven't mentioned in 21 days as inactive, and refresh the
             // weekly project pulse so its numbers are current.
             ProjectStore.refreshInactivity(in: context)
-            Task { await ProjectPulse.reschedule(in: context) }
+            Task {
+                await ProjectPulse.reschedule(in: context)
+                await CompetencyPulse.reschedule(in: context)
+            }
         }
     }
 }

@@ -166,6 +166,7 @@ struct EntrySummaryContent: View {
                 ForEach(Array(newProjects.enumerated()), id: \.offset) { _, detection in
                     NewProjectCard(detection: detection, projects: allProjects)
                 }
+                CompetencyTagsCard(entry: entry)
                 if !entry.skills.isEmpty {
                     SectionCard(title: "Skills I used", systemImage: "star") {
                         FlowLayout {

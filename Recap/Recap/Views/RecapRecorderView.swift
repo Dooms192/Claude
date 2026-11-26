@@ -11,6 +11,7 @@ struct RecapRecorderView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(filter: #Predicate<Goal> { !$0.isArchived }, sort: \Goal.createdAt) private var goals: [Goal]
+    @Query private var allEntries: [DayEntry]
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var isSaving = false
@@ -105,6 +106,14 @@ struct RecapRecorderView: View {
                 PromptRow(icon: "mountain.2", text: "What was hard, and how did you handle it?")
                 PromptRow(icon: "person.2", text: "Who did you work with or help?")
                 PromptRow(icon: "number", text: "Any numbers? Time saved, users, dollars, deadlines.")
+            }
+            // A rotating nudge toward competencies you don't have strong examples of yet.
+            if let nudge = CompetencyNudge.today(entries: allEntries) {
+                Label(nudge, systemImage: "star.square.on.square")
+                    .font(.subheadline.weight(.medium))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             if !goals.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {

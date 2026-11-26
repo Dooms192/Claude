@@ -34,6 +34,11 @@ final class DayEntry {
     @Relationship(inverse: \Project.entries)
     var projects: [Project]? = []
 
+    /// Competencies this day's recap showed, with the moment and how strongly.
+    var competencyTags: [CompetencyTag] = []
+    /// When competencies were last tagged by AI. Nil for recaps from before the feature.
+    var competenciesTaggedAt: Date?
+
     init(transcript: String, recordedAt: Date = Date()) {
         self.transcript = transcript
         self.createdAt = recordedAt
@@ -58,7 +63,8 @@ final class DayEntry {
     var searchableText: String {
         ([headline, summary, transcript] + accomplishments + challenges + skills
             + goalUpdates.map { "\($0.goalTitle) \($0.note)" }
-            + projectNotes.map { "\($0.projectName) \($0.note)" })
+            + projectNotes.map { "\($0.projectName) \($0.note)" }
+            + competencyTags.map { "\($0.competency) \($0.moment)" })
             .joined(separator: " ")
     }
 

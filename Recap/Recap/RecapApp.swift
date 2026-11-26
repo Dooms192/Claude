@@ -27,6 +27,11 @@ enum AppTab: Hashable {
     case journal, projects, goals, interview, settings
 }
 
+/// The Interview tab has two parts: building stories, and browsing your competencies.
+enum InterviewMode: Hashable {
+    case prep, competencies
+}
+
 @MainActor
 @Observable
 final class AppRouter {
@@ -36,6 +41,9 @@ final class AppRouter {
     var showRecorder = false
     /// Set by "Prep interview stories from this project"; Interview Prep picks it up.
     var interviewProjectID: UUID?
+    var interviewMode: InterviewMode = .prep
+    /// Set by "Build a STAR story for this competency"; Interview Prep picks it up.
+    var interviewCompetencies: [String]?
 
     func startRecap() {
         tab = .journal
@@ -44,6 +52,13 @@ final class AppRouter {
 
     func prepInterview(for project: Project) {
         interviewProjectID = project.id
+        interviewMode = .prep
+        tab = .interview
+    }
+
+    func prepStories(forCompetencies names: [String]) {
+        interviewCompetencies = names
+        interviewMode = .prep
         tab = .interview
     }
 }

@@ -258,6 +258,10 @@ struct ClaudeProjectWriter {
 
 /// Small helpers for writing the JSON schemas Claude's answers must follow.
 enum JSONSchema {
+    static func boolean(_ description: String) -> [String: Any] {
+        ["type": "boolean", "description": description]
+    }
+
     static func oneOf(_ values: [String], _ description: String) -> [String: Any] {
         ["type": "string", "enum": values, "description": description]
     }
