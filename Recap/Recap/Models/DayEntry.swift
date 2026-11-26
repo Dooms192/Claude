@@ -19,6 +19,9 @@ final class DayEntry {
     var challenges: [String] = []
     var skills: [String] = []
     var goalUpdates: [GoalUpdate] = []
+    /// Goals the AI noticed you working toward that aren't in your Goals list yet.
+    /// They're shown as suggestions you can add with one tap. Nothing is created automatically.
+    var suggestedGoals: [GoalUpdate] = []
     var summarizedBy: String = ""
     var summarizedAt: Date?
 
@@ -59,6 +62,7 @@ final class DayEntry {
         challenges = result.challenges
         skills = result.skills
         goalUpdates = result.goalUpdates
+        suggestedGoals = result.suggestedGoals
         summarizedBy = engine
         summarizedAt = Date()
 
@@ -68,6 +72,68 @@ final class DayEntry {
 
     func note(for goal: Goal) -> String? {
         goalUpdates.first { $0.goalTitle.normalizedKey == goal.title.normalizedKey }?.note
+    }
+
+    /// Progress on goals that actually exist in your Goals list.
+    func progressUpdates(existing goals: [Goal]) -> [GoalUpdate] {
+        let known = Set(goals.map { $0.title.normalizedKey })
+        return goalUpdates.filter { known.contains($0.goalTitle.normalizedKey) }
+    }
+
+    /// Goals mentioned in this recap that aren't in your Goals list yet. This also catches
+    /// progress the AI attributed to a goal you never created (as in recaps saved before
+    /// suggestions existed).
+    func goalSuggestions(existing goals: [Goal]) -> [GoalUpdate] {
+        var seen = Set(goals.map { $0.title.normalizedKey })
+        var result: [GoalUpdate] = []
+        for item in goalUpdates + suggestedGoals where !item.goalTitle.trimmed.isEmpty {
+            if seen.insert(item.goalTitle.normalizedKey).inserted { result.append(item) }
+        }
+        return result
+    }
+
+    func dismissSuggestion(_ title: String) {
+        let key = title.normalizedKey
+        suggestedGoals.removeAll { $0.goalTitle.normalizedKey == key }
+        goalUpdates.removeAll { $0.goalTitle.normalizedKey == key }
+    }
+}
+
+/// Connects goals to the recaps that mention them.
+@MainActor
+enum GoalLinker {
+    /// Creates a goal and links every past recap that mentioned it.
+    @discardableResult
+    static func createGoal(
+        title: String,
+        details: String = "",
+        targetDate: Date? = nil,
+        in context: ModelContext
+    ) -> Goal {
+        let goal = Goal(title: title.trimmed, details: details, targetDate: targetDate)
+        context.insert(goal)
+        link(goal, in: context)
+        return goal
+    }
+
+    /// Links `goal` to every recap that mentions its title, as progress or as a suggestion.
+    /// Called when a goal is created or renamed.
+    static func link(_ goal: Goal, in context: ModelContext) {
+        let key = goal.title.normalizedKey
+        let entries = (try? context.fetch(FetchDescriptor<DayEntry>())) ?? []
+        for entry in entries {
+            if let index = entry.suggestedGoals.firstIndex(where: { $0.goalTitle.normalizedKey == key }) {
+                let suggestion = entry.suggestedGoals.remove(at: index)
+                if !entry.goalUpdates.contains(where: { $0.goalTitle.normalizedKey == key }) {
+                    entry.goalUpdates.append(GoalUpdate(goalTitle: goal.title, note: suggestion.note))
+                }
+            }
+            if entry.goalUpdates.contains(where: { $0.goalTitle.normalizedKey == key }),
+               !(entry.goals ?? []).contains(where: { $0.id == goal.id }) {
+                entry.goals = (entry.goals ?? []) + [goal]
+            }
+        }
+        try? context.save()
     }
 }
 

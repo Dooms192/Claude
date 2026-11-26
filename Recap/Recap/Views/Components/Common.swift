@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// Lays out chips left to right, wrapping onto new lines as needed.
@@ -98,7 +99,13 @@ struct BulletList: View {
 struct EntrySummaryContent: View {
     let entry: DayEntry
 
+    @Environment(\.modelContext) private var context
+    @Query private var allGoals: [Goal]
+
     var body: some View {
+        let progress = entry.progressUpdates(existing: allGoals)
+        let suggestions = entry.goalSuggestions(existing: allGoals)
+
         VStack(alignment: .leading, spacing: 16) {
             if entry.isSummarized {
                 Text(entry.summary)
@@ -114,13 +121,34 @@ struct EntrySummaryContent: View {
                         BulletList(items: entry.challenges)
                     }
                 }
-                if !entry.goalUpdates.isEmpty {
+                if !progress.isEmpty {
                     SectionCard(title: "Goal progress", systemImage: "target") {
                         VStack(alignment: .leading, spacing: 8) {
-                            ForEach(Array(entry.goalUpdates.enumerated()), id: \.offset) { _, update in
+                            ForEach(Array(progress.enumerated()), id: \.offset) { _, update in
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(update.goalTitle).font(.subheadline.weight(.semibold))
                                     Text(update.note).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+                if !suggestions.isEmpty {
+                    SectionCard(title: "Sounds like a goal", systemImage: "plus.circle") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("You mentioned working toward these. Add them to track your progress over time.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            ForEach(Array(suggestions.enumerated()), id: \.offset) { _, suggestion in
+                                GoalSuggestionRow(suggestion: suggestion) {
+                                    withAnimation {
+                                        _ = GoalLinker.createGoal(title: suggestion.goalTitle, in: context)
+                                    }
+                                } onDismiss: {
+                                    withAnimation {
+                                        entry.dismissSuggestion(suggestion.goalTitle)
+                                        try? context.save()
+                                    }
                                 }
                             }
                         }
@@ -137,6 +165,37 @@ struct EntrySummaryContent: View {
                 Label("Not summarized yet", systemImage: "sparkles")
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+}
+
+private struct GoalSuggestionRow: View {
+    let suggestion: GoalUpdate
+    var onAdd: () -> Void
+    var onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(suggestion.goalTitle).font(.subheadline.weight(.semibold))
+                if !suggestion.note.isEmpty {
+                    Text(suggestion.note)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button("Add goal", action: onAdd)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .padding(6)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Not a goal")
         }
     }
 }

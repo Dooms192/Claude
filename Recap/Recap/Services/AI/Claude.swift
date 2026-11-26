@@ -159,6 +159,13 @@ struct ClaudeSummarizer: RecapSummarizer {
                     ]),
                     "Progress on my listed goals. Only goals I actually worked on today."
                 ),
+                "suggestedGoals": JSONSchema.array(
+                    JSONSchema.object([
+                        "goalTitle": JSONSchema.string("A short title for the goal, under 8 words"),
+                        "note": JSONSchema.string("One sentence on what I did toward it today"),
+                    ]),
+                    "Longer-term goals I said I'm working toward that are NOT in my list. Empty if none."
+                ),
             ])
         )
     }

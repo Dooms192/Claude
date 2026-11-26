@@ -228,12 +228,19 @@ struct GoalEditor: View {
     }
 
     private func save() {
+        // Either way, past recaps that mentioned this goal get linked to it.
         if let goal {
             goal.title = title.trimmed
             goal.details = details.trimmed
             goal.targetDate = hasTarget ? targetDate : nil
+            GoalLinker.link(goal, in: context)
         } else {
-            context.insert(Goal(title: title.trimmed, details: details.trimmed, targetDate: hasTarget ? targetDate : nil))
+            GoalLinker.createGoal(
+                title: title,
+                details: details.trimmed,
+                targetDate: hasTarget ? targetDate : nil,
+                in: context
+            )
         }
         try? context.save()
         dismiss()

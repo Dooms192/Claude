@@ -8,6 +8,7 @@ struct DailySummary: Codable, Sendable {
     var challenges: [String]
     var skills: [String]
     var goalUpdates: [GoalUpdate]
+    var suggestedGoals: [GoalUpdate]
 }
 
 protocol RecapSummarizer: Sendable {
@@ -95,7 +96,7 @@ enum Prompts {
 
     static func dailyPrompt(transcript: String, day: Date, goalTitles: [String]) -> String {
         let goals = goalTitles.isEmpty
-            ? "(No goals set yet. Leave goal updates empty.)"
+            ? "(No goals set yet. Leave goalUpdates empty.)"
             : goalTitles.map { "- \($0)" }.joined(separator: "\n")
         return """
         Date: \(DayFormat.long(day))
@@ -106,8 +107,13 @@ enum Prompts {
         My spoken recap:
         \(transcript)
 
-        Summarize my day. For goal updates, use the exact goal title from my list, and only \
-        include goals I actually made progress on today.
+        Summarize my day.
+        - goalUpdates: only goals from my list above, using the exact title, and only ones I \
+        actually made progress on today.
+        - suggestedGoals: bigger, longer-term goals I said I'm working toward that are NOT in my \
+        list (for example "Get AWS certified" or "Get promoted to senior engineer"). Give each a \
+        short title (under 8 words) and one sentence on what I did toward it today. Don't include \
+        one-off tasks or chores. Leave it empty if there are none.
         """
     }
 
