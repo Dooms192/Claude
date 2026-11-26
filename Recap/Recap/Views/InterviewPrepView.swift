@@ -13,6 +13,14 @@ struct InterviewPrepView: View {
     @State private var request = ""
     @State private var isWorking = false
     @State private var errorMessage: String?
+    /// Lets you speak the interview description instead of typing it. Same on-device
+    /// speech-to-text as daily recaps; the words land in the text box so you can fix them.
+    @State private var dictation = RecapRecorder()
+    @State private var textBeforeDictation = ""
+
+    private var isDictating: Bool {
+        dictation.phase == .recording || dictation.phase == .finishing
+    }
 
     private static let examples = [
         "Behavioral interview for a product manager role. They care about leadership and handling conflict.",
@@ -31,26 +39,49 @@ struct InterviewPrepView: View {
                         axis: .vertical
                     )
                     .lineLimit(3...8)
+                    .disabled(isDictating)
 
-                    Button {
-                        Task { await prepare() }
-                    } label: {
-                        HStack {
-                            if isWorking {
-                                ProgressView()
-                                Text("Searching \(entries.count) days…")
-                            } else {
-                                Image(systemName: "sparkles")
-                                Text("Prepare my stories")
-                            }
-                        }
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .frame(maxWidth: .infinity)
+                    if isDictating {
+                        Label("Listening… tap the mic when you're done", systemImage: "waveform")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.red)
+                            .symbolEffect(.variableColor.iterative, isActive: true)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(request.trimmed.isEmpty || isWorking)
+
+                    HStack(spacing: 10) {
+                        Button {
+                            Task { await toggleDictation() }
+                        } label: {
+                            Image(systemName: isDictating ? "stop.fill" : "mic.fill")
+                                .font(.title3)
+                                .frame(width: 30, height: 30)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(isDictating ? .red : .accentColor)
+                        .controlSize(.large)
+                        .disabled(isWorking || dictation.phase == .finishing)
+                        .accessibilityLabel(isDictating ? "Stop dictation" : "Speak instead of typing")
+
+                        Button {
+                            Task { await prepare() }
+                        } label: {
+                            HStack {
+                                if isWorking {
+                                    ProgressView()
+                                    Text("Searching \(entries.count) days…")
+                                } else {
+                                    Image(systemName: "sparkles")
+                                    Text("Prepare my stories")
+                                }
+                            }
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(request.trimmed.isEmpty || isWorking || isDictating)
+                    }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 } header: {
                     Text("Your interview")
@@ -91,6 +122,28 @@ struct InterviewPrepView: View {
         } placeholder: {
             STARExplainer()
         }
+        .onChange(of: dictation.transcript) { _, spoken in
+            guard isDictating else { return }
+            request = Self.join(textBeforeDictation, spoken)
+        }
+        .onChange(of: dictation.phase) { _, phase in
+            // Finished talking: keep the words in the text box and reset for next time.
+            if phase == .review {
+                request = Self.join(textBeforeDictation, dictation.transcript)
+                dictation.reset()
+            }
+        }
+        .onDisappear {
+            if dictation.phase == .recording { Task { await dictation.stop() } }
+        }
+        .alert("Microphone", isPresented: .init(
+            get: { dictation.errorMessage != nil },
+            set: { if !$0 { dictation.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(dictation.errorMessage ?? "")
+        }
         .alert("Couldn't prepare", isPresented: .init(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
@@ -122,6 +175,22 @@ struct InterviewPrepView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func toggleDictation() async {
+        if dictation.phase == .recording {
+            await dictation.stop()
+        } else {
+            textBeforeDictation = request.trimmed
+            await dictation.start()
+        }
+    }
+
+    private static func join(_ a: String, _ b: String) -> String {
+        let a = a.trimmed, b = b.trimmed
+        if a.isEmpty { return b }
+        if b.isEmpty { return a }
+        return a + " " + b
     }
 
     private func delete(at offsets: IndexSet) {

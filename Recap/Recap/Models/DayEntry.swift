@@ -68,6 +68,13 @@ final class DayEntry {
 
         let mentioned = Set(result.goalUpdates.map { $0.goalTitle.normalizedKey })
         goals = allGoals.filter { mentioned.contains($0.title.normalizedKey) }
+
+        // If you mentioned a deadline for a goal that doesn't have one yet, set it.
+        for goal in goals ?? [] where goal.targetDate == nil {
+            goal.targetDate = result.goalUpdates
+                .first { $0.goalTitle.normalizedKey == goal.title.normalizedKey }?
+                .deadline
+        }
     }
 
     func note(for goal: Goal) -> String? {
@@ -125,8 +132,14 @@ enum GoalLinker {
             if let index = entry.suggestedGoals.firstIndex(where: { $0.goalTitle.normalizedKey == key }) {
                 let suggestion = entry.suggestedGoals.remove(at: index)
                 if !entry.goalUpdates.contains(where: { $0.goalTitle.normalizedKey == key }) {
-                    entry.goalUpdates.append(GoalUpdate(goalTitle: goal.title, note: suggestion.note))
+                    entry.goalUpdates.append(
+                        GoalUpdate(goalTitle: goal.title, note: suggestion.note, targetDate: suggestion.targetDate)
+                    )
                 }
+            }
+            if goal.targetDate == nil,
+               let deadline = entry.goalUpdates.first(where: { $0.goalTitle.normalizedKey == key })?.deadline {
+                goal.targetDate = deadline
             }
             if entry.goalUpdates.contains(where: { $0.goalTitle.normalizedKey == key }),
                !(entry.goals ?? []).contains(where: { $0.id == goal.id }) {
@@ -140,6 +153,10 @@ enum GoalLinker {
 struct GoalUpdate: Codable, Hashable, Sendable {
     var goalTitle: String
     var note: String
+    /// A deadline you mentioned for this goal, as YYYY-MM-DD. Nil or empty if none.
+    var targetDate: String? = nil
+
+    var deadline: Date? { targetDate.flatMap(DayFormat.parse) }
 }
 
 extension String {

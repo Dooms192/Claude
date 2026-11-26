@@ -78,6 +78,13 @@ enum DayFormat {
 
     static func iso(_ date: Date) -> String { isoFormatter.string(from: date) }
 
+    /// Reads a YYYY-MM-DD date. Returns nil for empty or malformed text.
+    static func parse(_ text: String) -> Date? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return isoFormatter.date(from: trimmed)
+    }
+
     static func long(_ date: Date) -> String {
         date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
     }
@@ -107,6 +114,8 @@ enum Prompts {
         My spoken recap:
         \(transcript)
 
+        Today is \(DayFormat.iso(day)).
+
         Summarize my day.
         - goalUpdates: only goals from my list above, using the exact title, and only ones I \
         actually made progress on today.
@@ -114,6 +123,9 @@ enum Prompts {
         list (for example "Get AWS certified" or "Get promoted to senior engineer"). Give each a \
         short title (under 8 words) and one sentence on what I did toward it today. Don't include \
         one-off tasks or chores. Leave it empty if there are none.
+        - targetDate (on both lists): if I mentioned a deadline or target date for that goal, \
+        give it as YYYY-MM-DD. Work out relative dates such as "by the end of March" or "in six \
+        weeks" from today's date. Use an empty string if I didn't mention one.
         """
     }
 

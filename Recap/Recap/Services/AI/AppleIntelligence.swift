@@ -40,8 +40,8 @@ struct AppleSummarizer: RecapSummarizer {
             accomplishments: output.accomplishments,
             challenges: output.challenges,
             skills: output.skills,
-            goalUpdates: output.goalUpdates.map { GoalUpdate(goalTitle: $0.goalTitle, note: $0.note) },
-            suggestedGoals: output.suggestedGoals.map { GoalUpdate(goalTitle: $0.goalTitle, note: $0.note) }
+            goalUpdates: output.goalUpdates.map(\.goalUpdate),
+            suggestedGoals: output.suggestedGoals.map(\.goalUpdate)
         )
     }
 }
@@ -114,6 +114,13 @@ struct GeneratedGoalUpdate {
 
     @Guide(description: "One sentence on what I did toward this goal")
     var note: String
+
+    @Guide(description: "A deadline I mentioned for this goal as YYYY-MM-DD, worked out from today's date. Empty string if none.")
+    var targetDate: String
+
+    var goalUpdate: GoalUpdate {
+        GoalUpdate(goalTitle: goalTitle, note: note, targetDate: targetDate.isEmpty ? nil : targetDate)
+    }
 }
 
 @Generable

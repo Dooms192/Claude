@@ -36,7 +36,10 @@ struct AdaptiveSplitView<Item: Hashable, Sidebar: View, Detail: View, Placeholde
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $compactColumn) {
             sidebar()
-                .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 440)
+                // One fixed width. With a flexible range, revealing the hidden list
+                // by swiping from the edge could leave its contents laid out at the
+                // wrong width; a single width keeps every way of showing it identical.
+                .navigationSplitViewColumnWidth(340)
         } detail: {
             if let selection {
                 detail(selection)

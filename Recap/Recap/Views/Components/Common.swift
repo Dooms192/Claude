@@ -183,6 +183,11 @@ private struct GoalSuggestionRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                if let deadline = suggestion.deadline {
+                    Label("Target \(deadline.formatted(date: .abbreviated, time: .omitted))", systemImage: "calendar")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button("Add goal", action: onAdd)
