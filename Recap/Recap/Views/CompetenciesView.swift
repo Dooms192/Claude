@@ -28,6 +28,7 @@ struct CompetenciesView: View {
 
         AdaptiveSplitView(selection: $selection) {
             CompetencyListView(
+                selection: $selection,
                 records: records,
                 untaggedCount: untagged,
                 searchText: $searchText,
@@ -94,6 +95,9 @@ struct CompetenciesView: View {
 // MARK: - List
 
 struct CompetencyListView: View {
+    /// Tapping a row sets this, which shows its detail (beside the list when unfolded,
+    /// pushed when folded), the same way every other tab works.
+    @Binding var selection: CompetencySelection?
     let records: [String: CompetencyRecord]
     let untaggedCount: Int
     @Binding var searchText: String
@@ -105,7 +109,7 @@ struct CompetencyListView: View {
 
     var body: some View {
         let all = Array(records.values)
-        List {
+        List(selection: $selection) {
             InterviewModePicker()
 
             if untaggedCount > 0 {
