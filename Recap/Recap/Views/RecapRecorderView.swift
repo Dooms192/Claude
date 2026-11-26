@@ -12,13 +12,14 @@ struct RecapRecorderView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(filter: #Predicate<Goal> { !$0.isArchived }, sort: \Goal.createdAt) private var goals: [Goal]
 
-    @State private var width: CGFloat = 0
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var isSaving = false
     @State private var savedEntry: DayEntry?
     @State private var saveProblem: String?
     @State private var confirmDiscard = false
 
-    private var isWide: Bool { width >= DuoLayout.splitWidth }
+    /// Regular width (the unfolded Duo) gets prompts beside the transcript.
+    private var isWide: Bool { horizontalSizeClass == .regular }
 
     var body: some View {
         NavigationStack {
@@ -32,7 +33,7 @@ struct RecapRecorderView: View {
                             Spacer(minLength: 0)
                             controls
                         }
-                        .frame(width: min(340, width * 0.4))
+                        .frame(maxWidth: 340)
                         transcriptPanel
                     }
                     .padding(24)
@@ -48,7 +49,6 @@ struct RecapRecorderView: View {
                     .padding()
                 }
             }
-            .readWidth(into: $width)
             .navigationTitle(savedEntry == nil ? "Today's Recap" : "Saved")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }

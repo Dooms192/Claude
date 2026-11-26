@@ -19,13 +19,15 @@ Your recap is always saved *before* it's summarized, so a failed summary never l
 
 ## iPhone Duo support
 
-Apps break on new devices when they assume a fixed screen size. Recap doesn't:
+Recap follows Apple's "Prepare your app for iPhone Duo" guidance:
 
-- **Folded (5.4" outer screen):** a normal one-column iPhone layout.
-- **Unfolded (7.6" inner screen):** two columns. Your list is on the left and the selected day, goal, or interview prep is on the right. The recorder puts the prompts and controls on the left and the live transcript on the right, and STAR stories show their four parts in a 2×2 grid.
-- **The switch is based on the actual width the app has** (`Views/Components/AdaptiveSplitView.swift`), not the device model, so it works however iOS labels each screen, in Split View, and on future devices.
-- **Folding or unfolding never loses your place.** The recording and transcript live at the app level, and the selected item is held above the layout. If you unfold while reading a day, it opens on the right. If you fold, it stays open full-screen. If you fold mid-sentence, it keeps recording.
-- All orientations and multitasking are supported.
+- **System navigation instead of custom layouts.** Each tab uses `NavigationSplitView`, which Apple calls fully adaptive on iPhone Duo. Folded, it shows one column and you tap through. Unfolded, it shows your list and the selected day, goal, or prep side by side. The `TabView` adapts on its own too, and shows vertically on the inner screen.
+- **Size classes, not screen measurements.** The outer screen is compact width and the unfolded inner screen is regular width, like an iPad. Any layout decision (such as the recorder putting prompts beside the transcript) reads `horizontalSizeClass`. There are no hand-picked widths and no device checks.
+- **The system handles safe areas.** Safe areas on the Duo are often uneven (camera, status bar, vertical toolbars), so Recap leaves them to the system and never overrides them.
+- **Folding or unfolding never loses your place.** The recording and transcript live at the app level, and the selected item is held above the layout. If you fold mid-sentence, it keeps recording.
+- All orientations and Split View multitasking are supported.
+
+For the full inner-screen experience, where toolbars run vertically under the status bar and the app reaches the screen edge, Apple says to build with **Xcode 27.1 or later**.
 
 ## AI: Apple Intelligence and Claude
 
@@ -44,14 +46,14 @@ If the engine you picked isn't available, Recap uses the other one.
 
 ## Building it (on a Mac)
 
-You need Xcode 26 or later and an iPhone running iOS 26 or later. Apple Intelligence also needs a supported device with Apple Intelligence turned on.
+You need Xcode 26 or later (Xcode 27.1 or later is recommended for the best iPhone Duo inner-screen layout) and an iPhone running iOS 26 or later. Apple Intelligence also needs a supported device with Apple Intelligence turned on.
 
 1. Clone this repo on your Mac and open `Recap/Recap.xcodeproj`.
 2. Click the **Recap** project, then the **Recap** target, then **Signing & Capabilities**. Choose your **Team** (a free Apple ID works for your own phone), and change the **Bundle Identifier** from `com.example.recap` to something unique, like `com.yourname.recap`.
 3. Plug in your iPhone Duo, pick it as the run destination, and press **Run** (⌘R).
 4. On the phone, allow the microphone and speech recognition when asked. If iOS says the developer isn't trusted, go to Settings → General → VPN & Device Management and trust your Apple ID.
 
-To check the Duo layouts without the phone, run on an iPhone Duo simulator if your Xcode has one. Otherwise use an iPad mini simulator: full-screen shows the unfolded layout, and a narrow Split View shows the folded one.
+To check the Duo layouts without the phone, use the iPhone Duo simulator in Xcode 27.1's Device Hub. It has buttons to open, close, and rotate the device. Also test Split View by dragging the app by its home indicator to either side of the inner screen.
 
 ## Project layout
 
@@ -71,7 +73,7 @@ Recap/
         Claude.swift               Anthropic Messages API client + JSON schemas
         Coordinators.swift         Engine picking, on-device semantic search, interview coach
     Views/
-      Components/AdaptiveSplitView.swift   The Duo fold/unfold layout
+      Components/AdaptiveSplitView.swift   NavigationSplitView wrapper used by every tab
       JournalView, RecapRecorderView, GoalsView, InterviewPrepView, SettingsView
 ```
 

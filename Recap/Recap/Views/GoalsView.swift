@@ -33,7 +33,7 @@ struct GoalListView: View {
     private var archived: [Goal] { goals.filter(\.isArchived) }
 
     var body: some View {
-        List {
+        List(selection: $selection) {
             if !active.isEmpty {
                 Section("Active") {
                     ForEach(active) { row(for: $0) }
@@ -70,9 +70,7 @@ struct GoalListView: View {
     }
 
     private func row(for goal: Goal) -> some View {
-        Button {
-            selection = goal
-        } label: {
+        NavigationLink(value: goal) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.title).font(.headline)
                 let days = goal.progressEntries
@@ -83,11 +81,7 @@ struct GoalListView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.vertical, 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .listRowBackground(selection == goal ? Color.accentColor.opacity(0.15) : nil)
     }
 }
 

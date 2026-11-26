@@ -54,7 +54,7 @@ struct EntryListView: View {
     }
 
     var body: some View {
-        List {
+        List(selection: $selection) {
             // With no recaps at all, the empty-state message below has its own record
             // button, so the card is hidden to keep the two from overlapping.
             if !entries.isEmpty && !hasRecapToday && searchText.isEmpty {
@@ -73,13 +73,9 @@ struct EntryListView: View {
             ForEach(sections) { section in
                 Section(section.month.formatted(.dateTime.month(.wide).year())) {
                     ForEach(section.entries) { entry in
-                        Button {
-                            selection = entry
-                        } label: {
+                        NavigationLink(value: entry) {
                             EntryRow(entry: entry)
                         }
-                        .buttonStyle(.plain)
-                        .listRowBackground(selection == entry ? Color.accentColor.opacity(0.15) : nil)
                     }
                 }
             }

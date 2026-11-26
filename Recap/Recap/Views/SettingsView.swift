@@ -28,7 +28,6 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
             }
             .navigationTitle("Settings")
-            .readableWidth()
         }
     }
 

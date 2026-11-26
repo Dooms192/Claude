@@ -23,7 +23,7 @@ struct InterviewPrepView: View {
 
     var body: some View {
         AdaptiveSplitView(selection: $selection) {
-            List {
+            List(selection: $selection) {
                 Section {
                     TextField(
                         "What's the interview for, and what do they want to hear about?",
@@ -70,9 +70,7 @@ struct InterviewPrepView: View {
                 if !sessions.isEmpty {
                     Section("Past prep") {
                         ForEach(sessions) { session in
-                            Button {
-                                selection = session
-                            } label: {
+                            NavigationLink(value: session) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(session.query)
                                         .font(.subheadline.weight(.semibold))
@@ -81,11 +79,7 @@ struct InterviewPrepView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
-                            .listRowBackground(selection == session ? Color.accentColor.opacity(0.15) : nil)
                         }
                         .onDelete(perform: delete)
                     }
