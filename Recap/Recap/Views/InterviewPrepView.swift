@@ -6,13 +6,21 @@ import SwiftUI
 struct InterviewPrepView: View {
     @Query(sort: \PrepSession.createdAt, order: .reverse) private var sessions: [PrepSession]
     @Query(sort: \DayEntry.date, order: .reverse) private var entries: [DayEntry]
+    @Query(sort: \Project.lastMentioned, order: .reverse) private var projects: [Project]
     @Environment(\.modelContext) private var context
+    @Environment(AppRouter.self) private var router
 
     // Kept here, above the adaptive layout, so an in-progress request survives a fold or unfold.
     @State private var selection: PrepSession?
     @State private var request = ""
     @State private var isWorking = false
     @State private var errorMessage: String?
+    /// "Use stories from": nil means all projects.
+    @State private var projectFilterID: UUID?
+
+    private var selectedProject: Project? {
+        projects.first { $0.id == projectFilterID }
+    }
     /// Lets you speak the interview description instead of typing it. Same on-device
     /// speech-to-text as daily recaps; the words land in the text box so you can fix them.
     @State private var dictation = RecapRecorder()
@@ -33,6 +41,14 @@ struct InterviewPrepView: View {
         AdaptiveSplitView(selection: $selection) {
             List(selection: $selection) {
                 Section {
+                    if !projects.isEmpty {
+                        Picker("Use stories from", selection: $projectFilterID) {
+                            Text("All projects").tag(UUID?.none)
+                            ForEach(projects) { project in
+                                Label(project.name, systemImage: project.icon).tag(Optional(project.id))
+                            }
+                        }
+                    }
                     TextField(
                         "What's the interview for, and what do they want to hear about?",
                         text: $request,
@@ -122,6 +138,9 @@ struct InterviewPrepView: View {
         } placeholder: {
             STARExplainer()
         }
+        // "Prep interview stories from this project" on a project page lands here.
+        .onAppear(perform: takeProjectFromRouter)
+        .onChange(of: router.interviewProjectID) { takeProjectFromRouter() }
         .onChange(of: dictation.transcript) { _, spoken in
             guard isDictating else { return }
             request = Self.join(textBeforeDictation, spoken)
@@ -160,13 +179,14 @@ struct InterviewPrepView: View {
         isWorking = true
         defer { isWorking = false }
         do {
-            let outcome = try await InterviewCoach.prepare(for: query, entries: entries)
+            let outcome = try await InterviewCoach.prepare(for: query, entries: entries, project: selectedProject)
             let session = PrepSession(
                 query: query,
                 engine: outcome.engine,
                 note: outcome.note,
                 entriesUsed: outcome.entriesUsed,
-                prep: outcome.prep
+                prep: outcome.prep,
+                projectName: selectedProject?.name
             )
             context.insert(session)
             try? context.save()
@@ -175,6 +195,13 @@ struct InterviewPrepView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func takeProjectFromRouter() {
+        guard let id = router.interviewProjectID else { return }
+        projectFilterID = id
+        selection = nil
+        router.interviewProjectID = nil
     }
 
     private func toggleDictation() async {
@@ -213,7 +240,7 @@ struct PrepResultView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(session.query)
                             .font(.title2.bold())
-                        Text("Drew on \(session.entriesUsed) of your days · \(session.engine)")
+                        Text("Drew on \(session.entriesUsed) of your days\(session.projectName.map { " from “\($0)”" } ?? "") · \(session.engine)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

@@ -158,6 +158,13 @@ struct EntryRow: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+            let projects = (entry.projects ?? []).sorted { $0.name < $1.name }
+            if !projects.isEmpty {
+                FlowLayout(spacing: 4) {
+                    ForEach(projects) { ProjectTag(project: $0) }
+                }
+                .padding(.top, 2)
+            }
         }
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)

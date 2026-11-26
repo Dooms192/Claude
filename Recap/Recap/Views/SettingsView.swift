@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct SettingsView: View {
@@ -6,6 +7,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.reminderMinute) private var reminderMinute = 0
     @AppStorage(SettingsKey.summaryEngine) private var summaryEngine: AIEngine = .apple
     @AppStorage(SettingsKey.interviewEngine) private var interviewEngine: AIEngine = .claude
+    @AppStorage(ProjectPulse.enabledKey) private var projectPulseEnabled = false
+    @Environment(\.modelContext) private var context
 
     @State private var keyField = ""
     @State private var hasKey = AIConfig.claudeKey != nil
@@ -17,6 +20,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 reminderSection
+                projectsSection
                 engineSection
                 claudeSection
                 Section("Your data") {
@@ -51,6 +55,19 @@ struct SettingsView: View {
             Text("End-of-day recap")
         } footer: {
             Text("Recap will nudge you to talk through your day. Tap the notification to start recording.")
+        }
+    }
+
+    private var projectsSection: some View {
+        Section {
+            Toggle("Weekly project pulse", isOn: $projectPulseEnabled)
+                .onChange(of: projectPulseEnabled) { _, enabled in
+                    Task { await updatePulse(enabled: enabled) }
+                }
+        } header: {
+            Text("Projects")
+        } footer: {
+            Text("A Sunday evening summary, like: \"You moved 3 projects forward this week. 'Website redesign' hasn't been mentioned in 2 weeks.\"")
         }
     }
 
@@ -132,6 +149,20 @@ struct SettingsView: View {
             await ReminderScheduler.schedule(hour: reminderHour, minute: reminderMinute)
         } else {
             reminderEnabled = false
+        }
+    }
+
+    private func updatePulse(enabled: Bool) async {
+        guard enabled else {
+            ProjectPulse.cancel()
+            return
+        }
+        let allowed = await ReminderScheduler.requestAuthorization()
+        notificationsDenied = !allowed
+        if allowed {
+            await ProjectPulse.reschedule(in: context)
+        } else {
+            projectPulseEnabled = false
         }
     }
 

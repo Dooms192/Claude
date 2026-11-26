@@ -28,6 +28,12 @@ final class DayEntry {
     @Relationship(inverse: \Goal.entries)
     var goals: [Goal]? = []
 
+    /// What this day's recap said about each project you worked on.
+    var projectNotes: [ProjectNote] = []
+
+    @Relationship(inverse: \Project.entries)
+    var projects: [Project]? = []
+
     init(transcript: String, recordedAt: Date = Date()) {
         self.transcript = transcript
         self.createdAt = recordedAt
@@ -51,7 +57,8 @@ final class DayEntry {
     /// Everything about this day as one string, used for search.
     var searchableText: String {
         ([headline, summary, transcript] + accomplishments + challenges + skills
-            + goalUpdates.map { "\($0.goalTitle) \($0.note)" })
+            + goalUpdates.map { "\($0.goalTitle) \($0.note)" }
+            + projectNotes.map { "\($0.projectName) \($0.note)" })
             .joined(separator: " ")
     }
 
@@ -75,6 +82,25 @@ final class DayEntry {
                 .first { $0.goalTitle.normalizedKey == goal.title.normalizedKey }?
                 .deadline
         }
+    }
+
+    /// Saves this day's project notes and links the day to projects you already have.
+    /// Names that don't match an existing project become "New project detected" cards.
+    @MainActor
+    func applyProjects(_ notes: [ProjectNote], existing projects: [Project]) {
+        projectNotes = notes.filter { !$0.projectName.trimmed.isEmpty }
+        let mentioned = Set(projectNotes.map { $0.projectName.normalizedKey })
+        let matched = projects.filter { mentioned.contains($0.name.normalizedKey) }
+        self.projects = matched
+        for project in matched {
+            ProjectStore.recordMention(of: project, in: self)
+        }
+    }
+
+    /// Project names in this recap that aren't projects yet and that you haven't ignored.
+    func projectDetections(existing projects: [Project], ignored: Set<String>) -> [ProjectNote] {
+        var seen = Set(projects.map { $0.name.normalizedKey }).union(ignored)
+        return projectNotes.filter { seen.insert($0.projectName.normalizedKey).inserted }
     }
 
     func note(for goal: Goal) -> String? {

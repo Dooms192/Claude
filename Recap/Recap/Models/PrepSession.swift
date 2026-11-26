@@ -11,8 +11,11 @@ final class PrepSession {
     var note: String?
     var entriesUsed: Int = 0
     var resultData: Data = Data()
+    /// Set when the prep used stories from one project only.
+    var projectName: String?
 
-    init(query: String, engine: String, note: String?, entriesUsed: Int, prep: InterviewPrep) {
+    init(query: String, engine: String, note: String?, entriesUsed: Int, prep: InterviewPrep, projectName: String? = nil) {
+        self.projectName = projectName
         self.query = query
         self.engine = engine
         self.note = note

@@ -29,9 +29,9 @@ enum AppleIntelligence {
 struct AppleSummarizer: RecapSummarizer {
     let displayName = "Apple Intelligence"
 
-    func summarize(transcript: String, day: Date, goalTitles: [String]) async throws -> DailySummary {
+    func summarize(transcript: String, day: Date, goalTitles: [String], projectNames: [String]) async throws -> DailySummary {
         let session = LanguageModelSession(instructions: Prompts.dailyInstructions)
-        let prompt = Prompts.dailyPrompt(transcript: transcript, day: day, goalTitles: goalTitles)
+        let prompt = Prompts.dailyPrompt(transcript: transcript, day: day, goalTitles: goalTitles, projectNames: projectNames)
         let response = try await session.respond(to: prompt, generating: GeneratedDailySummary.self)
         let output = response.content
         return DailySummary(
@@ -41,7 +41,8 @@ struct AppleSummarizer: RecapSummarizer {
             challenges: output.challenges,
             skills: output.skills,
             goalUpdates: output.goalUpdates.map(\.goalUpdate),
-            suggestedGoals: output.suggestedGoals.map(\.goalUpdate)
+            suggestedGoals: output.suggestedGoals.map(\.goalUpdate),
+            projects: output.projects.map(\.projectNote)
         )
     }
 }
@@ -49,16 +50,19 @@ struct AppleSummarizer: RecapSummarizer {
 struct AppleCoach: InterviewCoachEngine {
     let displayName = "Apple Intelligence"
 
-    /// The on-device model reads a limited amount of text, so it gets the top few entries, without transcripts.
+    /// The on-device model reads a limited amount of text, so it gets the top few entries,
+    /// without transcripts, and at most one short project timeline.
     static let maxEntries = 6
 
-    func prepare(request: String, entries: [EntrySnapshot], totalEntries: Int) async throws -> InterviewPrep {
+    func prepare(request: String, context: InterviewContext) async throws -> InterviewPrep {
         let session = LanguageModelSession(instructions: Prompts.interviewInstructions)
         let prompt = Prompts.interviewPrompt(
             request: request,
-            entries: Array(entries.prefix(Self.maxEntries)),
-            totalEntries: totalEntries,
-            transcriptLimit: 0
+            context: context,
+            entryLimit: Self.maxEntries,
+            transcriptLimit: 0,
+            projectLimit: 1,
+            projectDayLimit: 8
         )
         let response = try await session.respond(to: prompt, generating: GeneratedPrep.self)
         let output = response.content
@@ -77,6 +81,30 @@ struct AppleCoach: InterviewCoachEngine {
                 )
             },
             tips: output.tips
+        )
+    }
+}
+
+/// Writes a project's overview and highlights on the device.
+struct AppleProjectWriter {
+    /// Recent days only, to fit the on-device model.
+    static let dayLimit = 12
+
+    func write(_ project: ProjectSnapshot) async throws -> ProjectInsight {
+        let session = LanguageModelSession(instructions: Prompts.projectInstructions)
+        let response = try await session.respond(
+            to: Prompts.projectPrompt(project, dayLimit: Self.dayLimit),
+            generating: GeneratedProjectInsight.self
+        )
+        let output = response.content
+        return ProjectInsight(
+            summary: output.summary,
+            done: output.done,
+            problems: output.problems,
+            nextSteps: output.nextSteps,
+            wins: output.wins,
+            skills: output.skills,
+            blockersSolved: output.blockersSolved.map { .init(blocker: $0.blocker, resolution: $0.resolution) }
         )
     }
 }
@@ -105,6 +133,57 @@ struct GeneratedDailySummary {
 
     @Guide(description: "Longer-term goals I said I'm working toward that are NOT in my list. Short title plus one sentence. Empty if none.")
     var suggestedGoals: [GeneratedGoalUpdate]
+
+    @Guide(description: "Ongoing multi-day projects I worked on today. Reuse an exact name from my project list when it fits. No one-off tasks. Empty if none.")
+    var projects: [GeneratedProjectNote]
+}
+
+@Generable
+struct GeneratedProjectNote {
+    @Guide(description: "The project name: an exact name from my list if it fits, otherwise a short new name of 2 to 5 words")
+    var projectName: String
+
+    @Guide(description: "What I did on it today, in 1 to 2 sentences")
+    var note: String
+
+    @Guide(description: "Exactly one of: started, progressed, blocked, completed")
+    var status: String
+
+    @Guide(description: "Blockers I mentioned. Empty if none.")
+    var blockers: [String]
+
+    @Guide(description: "Next steps I mentioned. Empty if none.")
+    var nextSteps: [String]
+
+    var projectNote: ProjectNote {
+        ProjectNote(projectName: projectName, note: note, status: status, blockers: blockers, nextSteps: nextSteps)
+    }
+}
+
+@Generable
+struct GeneratedProjectInsight {
+    @Guide(description: "2 to 4 sentences on what the project is and where it stands now")
+    var summary: String
+    @Guide(description: "What's been finished")
+    var done: [String]
+    @Guide(description: "Current open problems or blockers")
+    var problems: [String]
+    @Guide(description: "What's next")
+    var nextSteps: [String]
+    @Guide(description: "Key wins worth remembering for a review or interview")
+    var wins: [String]
+    @Guide(description: "Skills I used on it")
+    var skills: [String]
+    @Guide(description: "Blockers that were later solved, each with how")
+    var blockersSolved: [GeneratedSolvedBlocker]
+}
+
+@Generable
+struct GeneratedSolvedBlocker {
+    @Guide(description: "The blocker")
+    var blocker: String
+    @Guide(description: "How I solved it")
+    var resolution: String
 }
 
 @Generable

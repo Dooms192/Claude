@@ -141,11 +141,11 @@ struct ClaudeSummarizer: RecapSummarizer {
 
     init(apiKey: String) { client = ClaudeClient(apiKey: apiKey) }
 
-    func summarize(transcript: String, day: Date, goalTitles: [String]) async throws -> DailySummary {
+    func summarize(transcript: String, day: Date, goalTitles: [String], projectNames: [String]) async throws -> DailySummary {
         try await client.structured(
             DailySummary.self,
             system: Prompts.dailyInstructions,
-            prompt: Prompts.dailyPrompt(transcript: transcript, day: day, goalTitles: goalTitles),
+            prompt: Prompts.dailyPrompt(transcript: transcript, day: day, goalTitles: goalTitles, projectNames: projectNames),
             schema: JSONSchema.object([
                 "headline": JSONSchema.string("A short headline for the day, under 10 words"),
                 "summary": JSONSchema.string("Two to four sentences summarizing the day, first person"),
@@ -168,6 +168,16 @@ struct ClaudeSummarizer: RecapSummarizer {
                     ]),
                     "Longer-term goals I said I'm working toward that are NOT in my list. Empty if none."
                 ),
+                "projects": JSONSchema.array(
+                    JSONSchema.object([
+                        "projectName": JSONSchema.string("An exact name from my project list if the work belongs to it, otherwise a short new name of 2 to 5 words"),
+                        "note": JSONSchema.string("What I did on it today, in 1 to 2 sentences"),
+                        "status": JSONSchema.oneOf(["started", "progressed", "blocked", "completed"], "How the project moved today"),
+                        "blockers": JSONSchema.strings("Blockers I mentioned. Empty if none."),
+                        "nextSteps": JSONSchema.strings("Next steps I mentioned. Empty if none."),
+                    ]),
+                    "Ongoing multi-day projects I worked on today. No one-off tasks. Empty if none."
+                ),
             ])
         )
     }
@@ -182,15 +192,17 @@ struct ClaudeCoach: InterviewCoachEngine {
 
     init(apiKey: String) { client = ClaudeClient(apiKey: apiKey) }
 
-    func prepare(request: String, entries: [EntrySnapshot], totalEntries: Int) async throws -> InterviewPrep {
+    func prepare(request: String, context: InterviewContext) async throws -> InterviewPrep {
         try await client.structured(
             InterviewPrep.self,
             system: Prompts.interviewInstructions,
             prompt: Prompts.interviewPrompt(
                 request: request,
-                entries: Array(entries.prefix(Self.maxEntries)),
-                totalEntries: totalEntries,
-                transcriptLimit: 1500
+                context: context,
+                entryLimit: Self.maxEntries,
+                transcriptLimit: 1500,
+                projectLimit: 5,
+                projectDayLimit: 40
             ),
             schema: JSONSchema.object([
                 "overview": JSONSchema.string("Two or three sentences on what this interviewer likely wants and which experiences fit best"),
@@ -213,8 +225,43 @@ struct ClaudeCoach: InterviewCoachEngine {
     }
 }
 
+/// Writes a project's overview and highlights with Claude.
+struct ClaudeProjectWriter {
+    let client: ClaudeClient
+    static let dayLimit = 80
+
+    init(apiKey: String) { client = ClaudeClient(apiKey: apiKey) }
+
+    func write(_ project: ProjectSnapshot) async throws -> ProjectInsight {
+        try await client.structured(
+            ProjectInsight.self,
+            system: Prompts.projectInstructions,
+            prompt: Prompts.projectPrompt(project, dayLimit: Self.dayLimit),
+            schema: JSONSchema.object([
+                "summary": JSONSchema.string("2 to 4 sentences on what the project is and where it stands now"),
+                "done": JSONSchema.strings("What's been finished"),
+                "problems": JSONSchema.strings("Current open problems or blockers"),
+                "nextSteps": JSONSchema.strings("What's next"),
+                "wins": JSONSchema.strings("Key wins worth remembering for a review or interview"),
+                "skills": JSONSchema.strings("Skills I used on it"),
+                "blockersSolved": JSONSchema.array(
+                    JSONSchema.object([
+                        "blocker": JSONSchema.string("The blocker"),
+                        "resolution": JSONSchema.string("How I solved it"),
+                    ]),
+                    "Blockers that were later solved, each with how"
+                ),
+            ])
+        )
+    }
+}
+
 /// Small helpers for writing the JSON schemas Claude's answers must follow.
 enum JSONSchema {
+    static func oneOf(_ values: [String], _ description: String) -> [String: Any] {
+        ["type": "string", "enum": values, "description": description]
+    }
+
     static func string(_ description: String) -> [String: Any] {
         ["type": "string", "description": description]
     }

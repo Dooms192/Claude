@@ -101,10 +101,16 @@ struct EntrySummaryContent: View {
 
     @Environment(\.modelContext) private var context
     @Query private var allGoals: [Goal]
+    @Query(sort: \Project.name) private var allProjects: [Project]
+    @Query private var ignoredProjectNames: [IgnoredProjectName]
 
     var body: some View {
         let progress = entry.progressUpdates(existing: allGoals)
         let suggestions = entry.goalSuggestions(existing: allGoals)
+        let newProjects = entry.projectDetections(
+            existing: allProjects,
+            ignored: Set(ignoredProjectNames.map { $0.name.normalizedKey })
+        )
 
         VStack(alignment: .leading, spacing: 16) {
             if entry.isSummarized {
@@ -153,6 +159,12 @@ struct EntrySummaryContent: View {
                             }
                         }
                     }
+                }
+                if !entry.projectNotes.isEmpty {
+                    ProjectNotesCard(notes: entry.projectNotes, projects: allProjects)
+                }
+                ForEach(Array(newProjects.enumerated()), id: \.offset) { _, detection in
+                    NewProjectCard(detection: detection, projects: allProjects)
                 }
                 if !entry.skills.isEmpty {
                     SectionCard(title: "Skills I used", systemImage: "star") {

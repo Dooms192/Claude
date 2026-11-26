@@ -18,13 +18,13 @@ struct RecapApp: App {
                 .environment(recorder)
                 .environment(router)
         }
-        .modelContainer(for: [DayEntry.self, Goal.self, PrepSession.self])
+        .modelContainer(for: [DayEntry.self, Goal.self, PrepSession.self, Project.self, IgnoredProjectName.self])
     }
 }
 
 /// Which tab is showing, and whether the recap recorder is open.
 enum AppTab: Hashable {
-    case journal, goals, interview, settings
+    case journal, projects, goals, interview, settings
 }
 
 @MainActor
@@ -34,10 +34,17 @@ final class AppRouter {
 
     var tab: AppTab = .journal
     var showRecorder = false
+    /// Set by "Prep interview stories from this project"; Interview Prep picks it up.
+    var interviewProjectID: UUID?
 
     func startRecap() {
         tab = .journal
         showRecorder = true
+    }
+
+    func prepInterview(for project: Project) {
+        interviewProjectID = project.id
+        tab = .interview
     }
 }
 

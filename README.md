@@ -13,7 +13,8 @@ At the end of each day, Recap reminds you to talk through what you did. It turns
 | AI summary | Headline, summary, accomplishments, challenges, skills, and progress on each of your goals. |
 | Goals | Add goals, and each recap is checked against them. Each goal shows a timeline of the days you worked on it. |
 | Journal | Every day, searchable, grouped by month. |
-| Interview prep | Describe the interview. Recap finds the most relevant days by meaning, not just keywords, and writes 3–5 STAR stories, a "how to say it" script for each, and tips. Past preps are saved and shareable. |
+| Projects | Recap spots ongoing projects in your recaps and asks before adding them (Add, Rename, Merge, or Ignore). Each project gets an AI overview, highlights (wins, skills, solved blockers), a weekly activity chart, and a day-by-day timeline. Projects you haven't mentioned in 21 days are marked inactive with a "Still working on this?" prompt. There's an optional weekly "Project pulse" notification, and you can share a project as text. |
+| Interview prep | Describe the interview. Recap finds the most relevant days by meaning, not just keywords, and writes 3–5 STAR stories, a "how to say it" script for each, and tips. Results are grouped by project, so one project's whole story becomes one answer. You can limit stories to a single project, and speak your request instead of typing it. Past preps are saved and shareable. |
 
 Your recap is always saved *before* it's summarized, so a failed summary never loses what you said. You can retry from the journal.
 
@@ -62,10 +63,12 @@ Recap/
   Recap.xcodeproj
   Recap/
     RecapApp.swift                 App entry, tab routing, notification handling
-    Models/                        SwiftData models: DayEntry, Goal, PrepSession (+ STAR types)
+    Models/                        SwiftData models: DayEntry, Goal, Project, PrepSession (+ STAR types)
     Services/
       RecapRecorder.swift          Microphone + on-device speech-to-text
       ReminderScheduler.swift      Daily notification
+      ProjectStore.swift           Add, rename, merge, ignore, and inactivity for projects
+      ProjectPulse.swift           Weekly project pulse notification
       AppSettings.swift            Engine choice, Keychain storage for the API key
       AI/
         Summaries.swift            Shared prompts and data shapes
@@ -74,7 +77,8 @@ Recap/
         Coordinators.swift         Engine picking, on-device semantic search, interview coach
     Views/
       Components/AdaptiveSplitView.swift   NavigationSplitView wrapper used by every tab
-      JournalView, RecapRecorderView, GoalsView, InterviewPrepView, SettingsView
+      Components/ProjectComponents.swift   New-project card, project tags, text export
+      JournalView, ProjectsView, RecapRecorderView, GoalsView, InterviewPrepView, SettingsView
 ```
 
 All data is stored on the device with SwiftData.
