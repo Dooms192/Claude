@@ -659,7 +659,7 @@ struct CompetencyPickerSheet: View {
             .searchable(text: $searchText, prompt: "Search, like \"leading without authority\"")
             .task(id: searchText) {
                 let results = await CompetencySearch.results(for: searchText)
-            if !Task.isCancelled { searchResults = results }
+                if !Task.isCancelled { searchResults = results }
             }
             .task { await CompetencySearchIndex.shared.warmUp() }
             .navigationTitle("Build stories for")
