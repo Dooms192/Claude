@@ -149,7 +149,7 @@ enum GoalLinker {
         targetDate: Date? = nil,
         in context: ModelContext
     ) -> Goal {
-        let goal = Goal(title: title.trimmed, details: details, targetDate: targetDate)
+        let goal = Goal(title: title.titleCased, details: details, targetDate: targetDate)
         context.insert(goal)
         link(goal, in: context)
         return goal
@@ -194,4 +194,23 @@ struct GoalUpdate: Codable, Hashable, Sendable {
 extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
     var normalizedKey: String { trimmed.lowercased() }
+
+    /// Title case for goal names: "trying to give feedback in a positive way" becomes
+    /// "Trying to Give Feedback in a Positive Way". Small words stay lowercase unless
+    /// they're first or last, and words that already have capitals (AWS, iOS) are kept.
+    var titleCased: String {
+        let smallWords: Set<String> = [
+            "a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor",
+            "of", "on", "or", "per", "so", "the", "to", "up", "via", "vs", "with", "yet",
+        ]
+        let words = trimmed.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        return words.enumerated().map { index, word in
+            // Leave words someone deliberately capitalized alone.
+            guard word == word.lowercased() else { return word }
+            let isEdge = index == 0 || index == words.count - 1
+            if !isEdge && smallWords.contains(word) { return word }
+            return word.prefix(1).uppercased() + word.dropFirst()
+        }
+        .joined(separator: " ")
+    }
 }

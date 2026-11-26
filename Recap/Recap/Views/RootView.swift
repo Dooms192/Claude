@@ -108,10 +108,24 @@ struct RootView: View {
             // weekly project pulse so its numbers are current.
             Task {
                 await Task.yield()
+                Self.titleCaseExistingGoals(in: context)
                 ProjectStore.refreshInactivity(in: context)
                 await ProjectPulse.reschedule(in: context)
                 await CompetencyPulse.reschedule(in: context)
             }
         }
+    }
+
+    private static let goalsTitleCasedKey = "goalsTitleCased"
+
+    /// One-time fix for goals saved before titles were title-cased. Goal links match names
+    /// without regard to capitals, so progress and timelines are unaffected.
+    private static func titleCaseExistingGoals(in context: ModelContext) {
+        guard !UserDefaults.standard.bool(forKey: goalsTitleCasedKey) else { return }
+        for goal in (try? context.fetch(FetchDescriptor<Goal>())) ?? [] where goal.title != goal.title.titleCased {
+            goal.title = goal.title.titleCased
+        }
+        try? context.save()
+        UserDefaults.standard.set(true, forKey: goalsTitleCasedKey)
     }
 }

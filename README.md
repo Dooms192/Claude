@@ -121,6 +121,7 @@ Newest first.
 
 ### Bug fixes
 
+- **Goal names in title case:** goals from recap suggestions were saved all lowercase. Goal names are now title-cased when saved (small words stay lowercase, and existing capitals like AWS are kept). Existing goals are fixed once, automatically.
 - **Slow typing in competency search:** each keystroke reloaded Apple's language model on the main thread. The model now loads once in the background, and searches run off the main thread after a short pause in typing.
 - **Slow first launch and first unfold:** the microphone's speech recognizer and audio engine are now created when you first tap a mic, not every time a screen is built. Launch housekeeping (inactive projects, weekly summaries, backup folder) now runs after the first screen appears.
 - **Mic warning:** the audio system no longer switches into recording mode on the main thread, which caused an Xcode warning about possible freezes. A quick double-tap on the mic also can't start recording twice.

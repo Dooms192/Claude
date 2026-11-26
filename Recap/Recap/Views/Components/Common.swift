@@ -132,7 +132,7 @@ struct EntrySummaryContent: View {
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(Array(progress.enumerated()), id: \.offset) { _, update in
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(update.goalTitle).font(.subheadline.weight(.semibold))
+                                    Text(update.goalTitle.titleCased).font(.subheadline.weight(.semibold))
                                     Text(update.note).foregroundStyle(.secondary)
                                 }
                             }
@@ -190,7 +190,7 @@ private struct GoalSuggestionRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(suggestion.goalTitle).font(.subheadline.weight(.semibold))
+                Text(suggestion.goalTitle.titleCased).font(.subheadline.weight(.semibold))
                 if !suggestion.note.isEmpty {
                     Text(suggestion.note)
                         .font(.subheadline)

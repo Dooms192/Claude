@@ -188,6 +188,7 @@ struct GoalEditor: View {
             Form {
                 Section {
                     TextField("Goal, e.g. Lead a project end to end", text: $title)
+                        .textInputAutocapitalization(.words)
                     TextField("Details (optional)", text: $details, axis: .vertical)
                         .lineLimit(2...6)
                 }
@@ -224,7 +225,7 @@ struct GoalEditor: View {
     private func save() {
         // Either way, past recaps that mentioned this goal get linked to it.
         if let goal {
-            goal.title = title.trimmed
+            goal.title = title.titleCased
             goal.details = details.trimmed
             goal.targetDate = hasTarget ? targetDate : nil
             GoalLinker.link(goal, in: context)
