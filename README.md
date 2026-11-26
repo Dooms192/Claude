@@ -101,6 +101,34 @@ Recap/
 
 All data is stored on the device with SwiftData.
 
+## Updates
+
+Newest first.
+
+### Major updates
+
+- **Competency info buttons:** a ⓘ on each competency shows what employers look for: skilled, less skilled, and overused behaviors, what interviewers listen for, and common interview questions. Competency stories now use this to show the right behaviors.
+- **Automatic backups:** backups go to a folder you choose, such as one in iCloud Drive, with no paid account or CloudKit. Includes restore (Replace or Merge), a safety copy before restoring, a restore offer on a fresh install, and a "Back up Recap" Shortcuts action.
+- **Competencies (FYI / Korn Ferry Leadership Architect):** 38 competencies in four groups. Recaps are tagged with the ones you showed. You can browse and search them, see your evidence and coverage gaps, and fix tags by hand. Interview Prep can build one STAR story per competency, from ones you pick or from a pasted job posting.
+- **STAR explainer for everyone:** "What's a STAR story?" now appears in the Interview Prep list on every iPhone, not just the unfolded Duo.
+- **Projects:** ongoing projects are detected from your recaps. Each gets an AI overview, highlights, a weekly activity chart, a day-by-day timeline, and an inactive prompt after 21 days. Interview Prep can tell a project's whole story or use stories from one project.
+- **Goal deadlines and voice input:** deadlines you mention in a recap become a goal's target date. Interview Prep has a mic, so you can speak your request.
+- **iPhone Duo layout rebuilt on Apple's guidance:** every tab uses the system split view and size classes instead of a custom layout.
+- **Goal suggestions:** goals you mention in a recap are suggested with one-tap "Add goal" instead of being silently dropped.
+- **First version:** daily voice recaps, AI summaries (Apple Intelligence or Claude), goals, journal, end-of-day reminder, and STAR interview prep.
+
+### Bug fixes
+
+- **Mic warning:** the audio system no longer switches into recording mode on the main thread, which caused an Xcode warning about possible freezes. A quick double-tap on the mic also can't start recording twice.
+- **Competencies wouldn't open:** tapping a competency did nothing. It now opens like every other list.
+- **Squeezed left column on the unfolded Duo:** fixed by switching to the system split view.
+- **Journal overlap:** the "Record today's recap" card no longer overlaps the "No recaps yet" message.
+- **Wrapped text:** "Record today's recap" and "Prepare my stories" no longer wrap onto extra lines.
+
+### Known issues
+
+- **Sidebar swipe:** on the unfolded Duo, hiding the list and swiping it back in doesn't resize the layout correctly. The show/hide button works fine.
+
 ## Ideas for next steps
 
 - iCloud sync and backup
