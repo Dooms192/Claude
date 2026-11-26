@@ -44,6 +44,8 @@ struct InterviewPrepView: View {
                                 Text("Prepare my stories")
                             }
                         }
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)

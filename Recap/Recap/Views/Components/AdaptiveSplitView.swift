@@ -38,7 +38,14 @@ struct AdaptiveSplitView<Item: Hashable, Sidebar: View, Detail: View, Placeholde
             if width >= splitWidth {
                 HStack(spacing: 0) {
                     NavigationStack { sidebar() }
-                        .frame(width: min(400, max(300, width * 0.38)))
+                        // The left column is phone-sized, so it should lay out like a
+                        // phone: normal list margins, search under the title.
+                        .environment(\.horizontalSizeClass, .compact)
+                        // The screen margin on the camera side belongs to the right
+                        // column only. Without this the left column also loses that much
+                        // space on its right edge, squeezing its content.
+                        .ignoresSafeArea(.container, edges: .trailing)
+                        .frame(width: min(420, max(320, width * 0.4)))
                     Divider().ignoresSafeArea()
                     NavigationStack {
                         if let selection {

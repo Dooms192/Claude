@@ -55,7 +55,9 @@ struct EntryListView: View {
 
     var body: some View {
         List {
-            if !hasRecapToday && searchText.isEmpty {
+            // With no recaps at all, the empty-state message below has its own record
+            // button, so the card is hidden to keep the two from overlapping.
+            if !entries.isEmpty && !hasRecapToday && searchText.isEmpty {
                 Section {
                     Button {
                         router.startRecap()
@@ -112,20 +114,23 @@ struct EntryListView: View {
 
 private struct RecordTodayCard: View {
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Image(systemName: "mic.fill")
-                .font(.title2)
+                .font(.title3)
                 .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
+                .frame(width: 42, height: 42)
                 .background(Color.accentColor, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text("Record today's recap")
                     .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 Text("Just talk. Recap writes it up for you.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            Spacer(minLength: 0)
             Image(systemName: "chevron.right").foregroundStyle(.tertiary)
         }
         .padding()
