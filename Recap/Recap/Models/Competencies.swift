@@ -429,29 +429,29 @@ enum CompetencyLibrary {
         return all.first { $0.name.normalizedKey.contains(key) || key.contains($0.name.normalizedKey) }
     }
 
-    /// Ranks competencies for a search like "handling conflict", matching by meaning,
-    /// not just words. Returns the best matches first.
-    static func search(_ query: String, limit: Int = 8) -> [Competency] {
-        let query = query.trimmed
+    /// Instant word-only matching, shown while the meaning-based search (which runs in the
+    /// background in `CompetencySearchIndex`) catches up.
+    static func quickSearch(_ query: String, limit: Int = 8) -> [Competency] {
+        let query = query.trimmed.lowercased()
         guard !query.isEmpty else { return [] }
-        let lowered = query.lowercased()
-        let embedding = NLEmbedding.sentenceEmbedding(for: .english)
-        let scored = all.map { competency -> (Competency, Double) in
-            let text = "\(competency.name). \(competency.definition) \(competency.signals.joined(separator: ". ")). \(competency.keywords)"
-            var score = 0.0
-            if let embedding {
-                let distance = embedding.distance(between: query, and: text, distanceType: .cosine)
-                score += max(0, 1 - distance / 2)
-            }
-            if competency.name.lowercased().contains(lowered) { score += 1 }
-            let words = lowered.split(separator: " ").map(String.init).filter { $0.count > 3 }
-            let haystack = text.lowercased()
-            if !words.isEmpty {
-                score += 0.4 * Double(words.filter { haystack.contains(String($0.prefix(5))) }.count) / Double(words.count)
-            }
-            return (competency, score)
-        }
+        let scored = all.map { ($0, keywordScore(for: $0, query: query)) }.filter { $0.1 > 0 }
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map { $0.0 }
+    }
+
+    static func searchText(for competency: Competency) -> String {
+        "\(competency.name). \(competency.definition) \(competency.signals.joined(separator: ". ")). \(competency.keywords)"
+    }
+
+    /// Word matches: a strong boost for the name, a smaller one for definition and signals.
+    static func keywordScore(for competency: Competency, query lowered: String) -> Double {
+        var score = 0.0
+        if competency.name.lowercased().contains(lowered) { score += 1 }
+        let words = lowered.split(separator: " ").map(String.init).filter { $0.count > 3 }
+        let haystack = searchText(for: competency).lowercased()
+        if !words.isEmpty {
+            score += 0.4 * Double(words.filter { haystack.contains(String($0.prefix(5))) }.count) / Double(words.count)
+        }
+        return score
     }
 
     /// The list for Apple's small on-device model: names and a few words each.
@@ -798,4 +798,65 @@ extension CompetencyLibrary {
             sampleQuestions: ["Tell me about a time you had to change your approach mid-project.", "Describe how you adjust your style for different people."]
         ),
     ]
+}
+
+/// Meaning-based competency search ("handling conflict" finds Manages conflict), kept off
+/// the main thread so typing stays instant.
+///
+/// Apple's language model is loaded once, and each competency's meaning is worked out once;
+/// after that each search only has to look at what you typed.
+actor CompetencySearchIndex {
+    static let shared = CompetencySearchIndex()
+
+    private var embedding: NLEmbedding?
+    private var vectors: [String: [Double]] = [:]
+    private var isLoaded = false
+
+    /// Loads the model ahead of time, so the first search is fast too.
+    func warmUp() {
+        load()
+    }
+
+    /// The best-matching competency names, best first.
+    func search(_ query: String, limit: Int = 8) -> [String] {
+        let query = query.trimmed
+        guard !query.isEmpty else { return [] }
+        load()
+        let lowered = query.lowercased()
+        let queryVector = embedding?.vector(for: query)
+
+        let scored = CompetencyLibrary.all.map { competency -> (String, Double) in
+            var score = CompetencyLibrary.keywordScore(for: competency, query: lowered)
+            if let queryVector, let vector = vectors[competency.name] {
+                // Cosine similarity runs from -1 to 1; scale it to 0...1.
+                score += (1 + Self.cosine(queryVector, vector)) / 2
+            }
+            return (competency.name, score)
+        }
+        return scored.sorted { $0.1 > $1.1 }.prefix(limit).map { $0.0 }
+    }
+
+    private func load() {
+        guard !isLoaded else { return }
+        isLoaded = true
+        guard let embedding = NLEmbedding.sentenceEmbedding(for: .english) else { return }
+        self.embedding = embedding
+        for competency in CompetencyLibrary.all {
+            if let vector = embedding.vector(for: CompetencyLibrary.searchText(for: competency)) {
+                vectors[competency.name] = vector
+            }
+        }
+    }
+
+    private static func cosine(_ a: [Double], _ b: [Double]) -> Double {
+        guard a.count == b.count, !a.isEmpty else { return 0 }
+        var dot = 0.0, normA = 0.0, normB = 0.0
+        for index in a.indices {
+            dot += a[index] * b[index]
+            normA += a[index] * a[index]
+            normB += b[index] * b[index]
+        }
+        guard normA > 0, normB > 0 else { return 0 }
+        return dot / (normA.squareRoot() * normB.squareRoot())
+    }
 }

@@ -108,6 +108,8 @@ struct CompetencyListView: View {
     let records: [String: CompetencyRecord]
     let untaggedCount: Int
     @Binding var searchText: String
+    /// Meaning-based results from the background search, for the current text.
+    @State private var searchResults: [String] = []
     let dictation: RecapRecorder
     let retagProgress: (done: Int, total: Int)?
     let onRetag: () -> Void
@@ -152,13 +154,19 @@ struct CompetencyListView: View {
                 }
             } else {
                 Section("Best matches") {
-                    ForEach(CompetencyLibrary.search(searchText)) { competency in
+                    ForEach(CompetencySearch.matches(for: searchText, results: searchResults)) { competency in
                         row(for: competency)
                     }
                 }
             }
         }
         .searchable(text: $searchText, prompt: "Search, like \"handling conflict\"")
+        .task(id: searchText) {
+            let results = await CompetencySearch.results(for: searchText)
+            if !Task.isCancelled { searchResults = results }
+        }
+        // Load the language model in the background, so the first search is quick too.
+        .task { await CompetencySearchIndex.shared.warmUp() }
         .navigationTitle("Competencies")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -631,6 +639,7 @@ struct CompetencyPickerSheet: View {
     @Binding var selection: [String]
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
+    @State private var searchResults: [String] = []
 
     var body: some View {
         NavigationStack {
@@ -643,11 +652,16 @@ struct CompetencyPickerSheet: View {
                     }
                 } else {
                     Section("Best matches") {
-                        ForEach(CompetencyLibrary.search(searchText)) { row(for: $0) }
+                        ForEach(CompetencySearch.matches(for: searchText, results: searchResults)) { row(for: $0) }
                     }
                 }
             }
             .searchable(text: $searchText, prompt: "Search, like \"leading without authority\"")
+            .task(id: searchText) {
+                let results = await CompetencySearch.results(for: searchText)
+            if !Task.isCancelled { searchResults = results }
+            }
+            .task { await CompetencySearchIndex.shared.warmUp() }
             .navigationTitle("Build stories for")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -705,5 +719,23 @@ enum CompetencyNudge {
         guard !thin.isEmpty else { return nil }
         let day = Calendar.current.ordinality(of: .day, in: .year, for: date) ?? 0
         return thin[day % thin.count].nudge
+    }
+}
+
+/// Glue between search boxes and the background search index.
+enum CompetencySearch {
+    /// Waits for a short pause in typing (the calling task restarts on every keystroke),
+    /// then runs the meaning-based search off the main thread.
+    static func results(for text: String) async -> [String] {
+        guard !text.trimmed.isEmpty else { return [] }
+        try? await Task.sleep(for: .milliseconds(200))
+        guard !Task.isCancelled else { return [] }
+        return await CompetencySearchIndex.shared.search(text)
+    }
+
+    /// Meaning-based results when they're ready, otherwise instant word matches.
+    static func matches(for text: String, results: [String]) -> [Competency] {
+        let found = results.compactMap { CompetencyLibrary.find($0) }
+        return found.isEmpty ? CompetencyLibrary.quickSearch(text) : found
     }
 }
