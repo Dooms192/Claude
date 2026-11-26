@@ -107,6 +107,7 @@ Newest first.
 
 ### Major updates
 
+- **Welcome tour:** a one-time guided tour on first install explains the app and sets up the microphone, daily reminder, AI, and backups (with restore on a reinstall). Existing users aren't shown it, and you can replay it from Settings.
 - **Competency info buttons:** a ⓘ on each competency shows what employers look for: skilled, less skilled, and overused behaviors, what interviewers listen for, and common interview questions. Competency stories now use this to show the right behaviors.
 - **Automatic backups:** backups go to a folder you choose, such as one in iCloud Drive, with no paid account or CloudKit. Includes restore (Replace or Merge), a safety copy before restoring, a restore offer on a fresh install, and a "Back up Recap" Shortcuts action.
 - **Competencies (FYI / Korn Ferry Leadership Architect):** 38 competencies in four groups. Recaps are tagged with the ones you showed. You can browse and search them, see your evidence and coverage gaps, and fix tags by hand. Interview Prep can build one STAR story per competency, from ones you pick or from a pasted job posting.

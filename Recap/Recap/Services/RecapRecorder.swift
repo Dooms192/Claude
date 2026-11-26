@@ -245,6 +245,11 @@ final class RecapRecorder {
         }
     }
 
+    /// Asks for microphone and speech recognition access, for the welcome tour.
+    nonisolated static func requestAccess() async -> Bool {
+        await requestPermissions()
+    }
+
     nonisolated private static func requestPermissions() async -> Bool {
         let status = await withCheckedContinuation { (continuation: CheckedContinuation<SFSpeechRecognizerAuthorizationStatus, Never>) in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }

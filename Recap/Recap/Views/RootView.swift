@@ -7,6 +7,10 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var backups = BackupManager.shared
     @State private var restoreError: String?
+    /// The welcome tour shows once, on first launch, until it's finished or skipped.
+    @AppStorage(Onboarding.completedKey) private var hasCompletedOnboarding = false
+    /// Becomes true after checking whether this is really a fresh install.
+    @State private var onboardingChecked = false
 
     var body: some View {
         @Bindable var router = router
@@ -33,6 +37,30 @@ struct RootView: View {
         .sheet(isPresented: $router.showRecorder) {
             RecapRecorderView()
         }
+        .fullScreenCover(isPresented: .init(
+            get: { onboardingChecked && !hasCompletedOnboarding },
+            set: { if !$0 { hasCompletedOnboarding = true } }
+        )) {
+            OnboardingView { startRecording in
+                hasCompletedOnboarding = true
+                if startRecording {
+                    // Give the tour a moment to close before the recorder opens.
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(500))
+                        router.startRecap()
+                    }
+                }
+            }
+        }
+        .task {
+            // Someone updating the app who already has recaps never sees the tour; it's
+            // only for fresh installs (or when replayed from Settings).
+            if !hasCompletedOnboarding {
+                let existing = (try? context.fetchCount(FetchDescriptor<DayEntry>())) ?? 0
+                if existing > 0 { hasCompletedOnboarding = true }
+            }
+            onboardingChecked = true
+        }
         // Any saved change to your data schedules an automatic backup (debounced).
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             backups.noteChange()
@@ -40,7 +68,10 @@ struct RootView: View {
         // On first launch with an empty app: "Found a backup from [date]. Restore it?"
         .alert(
             "Restore your backup?",
-            isPresented: .init(get: { backups.restoreOffer != nil }, set: { if !$0 { backups.restoreOffer = nil } }),
+            isPresented: .init(
+                get: { backups.restoreOffer != nil && hasCompletedOnboarding },
+                set: { if !$0 { backups.restoreOffer = nil } }
+            ),
             presenting: backups.restoreOffer
         ) { offer in
             Button("Restore") {

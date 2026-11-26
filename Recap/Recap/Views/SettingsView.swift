@@ -35,6 +35,11 @@ struct SettingsView: View {
                 projectsSection
                 engineSection
                 claudeSection
+                Section {
+                    Button("Show welcome tour") {
+                        UserDefaults.standard.set(false, forKey: Onboarding.completedKey)
+                    }
+                }
                 Section("Your data") {
                     Label("Your recaps, goals, and interview prep are stored only on this iPhone.", systemImage: "lock.iphone")
                     Label("Speech is turned into text on your device.", systemImage: "waveform")
