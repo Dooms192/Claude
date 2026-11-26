@@ -46,6 +46,20 @@ If the engine you picked isn't available, Recap uses the other one.
 
 **Claude Pro does not cover this.** Apps use the Anthropic API, which is billed separately. To turn on Claude, get a key at [console.anthropic.com](https://console.anthropic.com/settings/keys), add a few dollars of credit, and paste the key into Recap's Settings. The key is stored in the iPhone Keychain. You can set a monthly spending limit in the console.
 
+## Backups
+
+Recap backs up to a folder you choose. CloudKit isn't needed, so it works on a free Apple developer account.
+
+- **Set it up:** Settings → Backups → **Choose backup folder**. Pick a folder in **iCloud Drive** (for example iCloud Drive → Recap Backups), which works with the free iCloud storage. Settings warns you if the folder is inside the app (deleted along with it) or isn't in iCloud Drive.
+- **Automatic:** a backup is written about 5 seconds after any change, and when the app goes to the background with unsaved changes. Each backup is one JSON file, like `Recap-Backup-2026-11-26-2130.json`. It's written to a temporary file and renamed into place, so it's never half-written. Recap keeps the newest 5, 10, or 30, and only ever deletes its own `Recap-Backup-` files.
+- **What's included:** all recaps (transcripts, summaries, project notes, competency tags), goals, projects (overviews, colors, icons, status), interview preps, ignored project names, and your settings. Never the Claude API key.
+- **Restore:** Settings → **Restore from backup…** shows a preview, then **Replace everything** or **Merge** (adds what's missing, matched by ID, with no duplicates). A safety backup of your current data is saved first. On a fresh install, picking your backup folder offers to restore the newest backup.
+- **Shortcuts:** a "Back up Recap" action, for example for a nightly automation at 10 PM.
+- **If the folder goes missing** (iCloud signed out, folder deleted), Settings shows "Backups paused: choose your folder again". The app keeps working, and saving a recap never waits on a backup.
+- **Format versions:** every file has a `formatVersion`. New fields are added as optional, so old backups keep restoring, and `BackupFile.decode` is where future versions upgrade older files.
+
+**Test it once:** back up, delete the app, reinstall, choose the same backup folder, and accept "Restore it?". Then check that project timelines, goal progress, and competency evidence all came back.
+
 ## Building it (on a Mac)
 
 You need Xcode 26 or later (Xcode 27.1 or later is recommended for the best iPhone Duo inner-screen layout) and an iPhone running iOS 26 or later. Apple Intelligence also needs a supported device with Apple Intelligence turned on.
@@ -71,6 +85,7 @@ Recap/
       ReminderScheduler.swift      Daily notification
       ProjectStore.swift           Add, rename, merge, ignore, and inactivity for projects
       ProjectPulse.swift           Weekly project pulse notification
+      Backup/                      Backup file format, automatic backups and restore, Shortcuts action
       AppSettings.swift            Engine choice, Keychain storage for the API key
       AI/
         Summaries.swift            Shared prompts and data shapes

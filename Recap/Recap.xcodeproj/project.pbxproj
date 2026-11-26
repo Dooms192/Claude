@@ -189,6 +189,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Recap;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Recap listens while you talk through your day so it can turn it into a written recap.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Recap turns your spoken daily recap into text on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -222,6 +224,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Recap;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIFileSharingEnabled = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Recap listens while you talk through your day so it can turn it into a written recap.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Recap turns your spoken daily recap into text on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

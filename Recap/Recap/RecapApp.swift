@@ -18,8 +18,25 @@ struct RecapApp: App {
                 .environment(recorder)
                 .environment(router)
         }
-        .modelContainer(for: [DayEntry.self, Goal.self, PrepSession.self, Project.self, IgnoredProjectName.self])
+        .modelContainer(RecapStore.container)
     }
+
+    init() {
+        BackupManager.shared.configure(container: RecapStore.container)
+    }
+}
+
+/// The app's data store, shared by the app and the "Back up Recap" shortcut, which can run
+/// without the app on screen. It uses the same default location as before, so existing
+/// data is untouched.
+enum RecapStore {
+    static let container: ModelContainer = {
+        do {
+            return try ModelContainer(for: DayEntry.self, Goal.self, PrepSession.self, Project.self, IgnoredProjectName.self)
+        } catch {
+            fatalError("Couldn't open Recap's data: \(error)")
+        }
+    }()
 }
 
 /// Which tab is showing, and whether the recap recorder is open.

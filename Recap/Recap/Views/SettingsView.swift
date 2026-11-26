@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @AppStorage(SettingsKey.reminderEnabled) private var reminderEnabled = false
@@ -17,10 +18,20 @@ struct SettingsView: View {
     @State private var checkingKey = false
     @State private var notificationsDenied = false
 
+    // Backups
+    private enum ImporterKind { case folder, backupFile }
+    @State private var backups = BackupManager.shared
+    @State private var importerKind: ImporterKind = .folder
+    @State private var showingImporter = false
+    @State private var pendingRestore: BackupFile?
+    @State private var restoring = false
+    @State private var backupMessage: String?
+
     var body: some View {
         NavigationStack {
             Form {
                 reminderSection
+                backupsSection
                 projectsSection
                 engineSection
                 claudeSection
@@ -33,6 +44,29 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
             }
             .navigationTitle("Settings")
+            .fileImporter(
+                isPresented: $showingImporter,
+                allowedContentTypes: importerKind == .folder ? [.folder] : [.json]
+            ) { result in
+                Task { await handleImport(result) }
+            }
+            .confirmationDialog(
+                "Restore this backup?",
+                isPresented: .init(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }),
+                titleVisibility: .visible,
+                presenting: pendingRestore
+            ) { file in
+                Button("Replace everything", role: .destructive) { Task { await restore(file, mode: .replace) } }
+                Button("Merge (add what's missing)") { Task { await restore(file, mode: .merge) } }
+                Button("Cancel", role: .cancel) {}
+            } message: { file in
+                Text("Backup from \(file.createdAt.formatted(date: .long, time: .shortened)): \(file.preview.description). A safety backup of your current data is saved first.")
+            }
+            .alert("Backups", isPresented: .init(get: { backupMessage != nil }, set: { if !$0 { backupMessage = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(backupMessage ?? "")
+            }
         }
     }
 
@@ -56,6 +90,83 @@ struct SettingsView: View {
             Text("End-of-day recap")
         } footer: {
             Text("Recap will nudge you to talk through your day. Tap the notification to start recording.")
+        }
+    }
+
+    private var backupsSection: some View {
+        Section {
+            if let paused = backups.pausedMessage {
+                Label(paused, systemImage: "exclamationmark.triangle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
+            LabeledContent("Backup folder", value: backups.folderName ?? "Not set")
+            if backups.folderIsInsideApp {
+                Text("This folder is inside Recap itself (On My iPhone → Recap). Deleting the app deletes it too. Choose a folder in iCloud Drive instead.")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            } else if backups.hasFolder && !backups.folderIsInICloud {
+                Text("This folder isn't in iCloud Drive, so it won't follow you to a new phone.")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+            Button(backups.hasFolder ? "Change backup folder" : "Choose backup folder") {
+                importerKind = .folder
+                showingImporter = true
+            }
+            if backups.hasFolder {
+                LabeledContent(
+                    "Last backup",
+                    value: backups.lastBackupAt.map { $0.formatted(.relative(presentation: .named)) } ?? "Never"
+                )
+                Button {
+                    Task {
+                        if await backups.backupNow() { backupMessage = "Backed up." }
+                    }
+                } label: {
+                    if backups.isBackingUp { ProgressView() } else { Text("Back up now") }
+                }
+                .disabled(backups.isBackingUp)
+                Picker("Keep", selection: Binding(get: { backups.keepCount }, set: { backups.keepCount = $0 })) {
+                    ForEach(BackupManager.keepCountOptions, id: \.self) { Text("Last \($0) backups").tag($0) }
+                }
+            }
+            Button {
+                importerKind = .backupFile
+                showingImporter = true
+            } label: {
+                if restoring { ProgressView() } else { Text("Restore from backup…") }
+            }
+            .disabled(restoring)
+        } header: {
+            Text("Backups")
+        } footer: {
+            Text("Recommended: choose a folder in iCloud Drive, like iCloud Drive → Recap Backups. Recap saves a backup there automatically after changes, so your recaps survive deleting the app or switching phones. The free iCloud storage is plenty. Your Claude API key is never included in backups.")
+        }
+    }
+
+    private func handleImport(_ result: Result<URL, Error>) async {
+        guard case .success(let url) = result else { return }
+        switch importerKind {
+        case .folder:
+            await backups.chooseFolder(url)
+        case .backupFile:
+            do {
+                pendingRestore = try await backups.readBackup(at: url)
+            } catch {
+                backupMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func restore(_ file: BackupFile, mode: RestoreMode) async {
+        restoring = true
+        defer { restoring = false }
+        do {
+            try await backups.restore(file, mode: mode)
+            backupMessage = mode == .replace ? "Your backup is restored." : "Your backup is merged in."
+        } catch {
+            backupMessage = "Couldn't restore: \(error.localizedDescription)"
         }
     }
 
