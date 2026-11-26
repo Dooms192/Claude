@@ -68,11 +68,16 @@ struct RootView: View {
                 return
             }
             guard phase == .active else { return }
-            Task { await backups.checkForRestoreOffer() }
+            // Housekeeping runs after the screen is drawn, never before it.
+            Task {
+                await Task.yield()
+                await backups.checkForRestoreOffer()
+            }
             // Mark projects you haven't mentioned in 21 days as inactive, and refresh the
             // weekly project pulse so its numbers are current.
-            ProjectStore.refreshInactivity(in: context)
             Task {
+                await Task.yield()
+                ProjectStore.refreshInactivity(in: context)
                 await ProjectPulse.reschedule(in: context)
                 await CompetencyPulse.reschedule(in: context)
             }

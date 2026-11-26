@@ -23,10 +23,20 @@ final class RecapRecorder {
     private(set) var elapsed: TimeInterval = 0
     var errorMessage: String?
 
-    @ObservationIgnored private let engine = AVAudioEngine()
+    // Created the first time you tap a mic, not when a screen is built. SwiftUI builds
+    // screens often (for example when the Duo unfolds), and setting these up each time
+    // slowed things down.
+    @ObservationIgnored private var createdEngine: AVAudioEngine?
     @ObservationIgnored private let box = RequestBox()
-    @ObservationIgnored private let recognizer: SFSpeechRecognizer? =
+    @ObservationIgnored private lazy var recognizer: SFSpeechRecognizer? =
         SFSpeechRecognizer(locale: .current) ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+
+    private var engine: AVAudioEngine {
+        if let createdEngine { return createdEngine }
+        let engine = AVAudioEngine()
+        createdEngine = engine
+        return engine
+    }
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
     /// Text from finished speech segments. Recognition runs in segments that
     /// restart automatically, so long recaps and pauses work.
@@ -197,8 +207,10 @@ final class RecapRecorder {
     }
 
     private func teardownAudio() {
-        if engine.isRunning { engine.stop() }
-        engine.inputNode.removeTap(onBus: 0)
+        if let engine = createdEngine {
+            if engine.isRunning { engine.stop() }
+            engine.inputNode.removeTap(onBus: 0)
+        }
         AudioSessionController.deactivate()
     }
 

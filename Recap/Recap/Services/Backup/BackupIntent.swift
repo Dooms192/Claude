@@ -12,6 +12,7 @@ struct BackUpRecapIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let manager = BackupManager.shared
         manager.configure(container: RecapStore.container)
+        manager.loadSavedFolder()
         guard manager.hasFolder else { throw BackupError.noFolder }
         guard await manager.backupNow() else {
             throw BackupError.folderUnavailable

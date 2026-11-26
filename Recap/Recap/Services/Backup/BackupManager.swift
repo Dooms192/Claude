@@ -64,10 +64,15 @@ final class BackupManager {
 
     private init() {
         lastBackupAt = UserDefaults.standard.object(forKey: Self.lastBackupKey) as? Date
-        if let folder = try? resolveFolder() {
-            folderName = folder.lastPathComponent
-            updateFolderFlags(for: folder)
-        }
+        // Looking up the saved folder can be slow (iCloud Drive), so it happens just after
+        // launch instead of before the first screen is drawn.
+        Task { @MainActor in self.loadSavedFolder() }
+    }
+
+    func loadSavedFolder() {
+        guard folderName == nil, let folder = try? resolveFolder() else { return }
+        folderName = folder.lastPathComponent
+        updateFolderFlags(for: folder)
     }
 
     func configure(container: ModelContainer) {
